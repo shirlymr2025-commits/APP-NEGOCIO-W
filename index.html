@@ -1,0 +1,465 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Mi Negocio</title>
+<meta name="theme-color" content="#141216">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Mi Negocio">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;600;800&family=Barlow+Condensed:wght@600;700&display=swap">
+<style>
+:root{
+  --bg:#141216; --surface:#1e1b21; --surface2:#28242c; --line:#36313b;
+  --fg:#f5f0f7; --muted:#a69eae;
+  --accent:#ff2e93; --accent2:#ffe600;
+  --ok:#3ddc84; --bad:#ff5a5a;
+  --f-body:"Figtree",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-num:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.4;padding-top:env(safe-area-inset-top,0px)}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+.app{max-width:640px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:4px calc(96px + env(safe-area-inset-bottom,0px))}
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-block:12px;position:sticky;top:env(safe-area-inset-top,0px);background:var(--bg);z-index:5}
+.brand{font-weight:800;font-size:24px;line-height:1.1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.brand::after{content:"";display:block;width:36px;height:4px;border-radius:2px;background:var(--accent);margin-top:4px}
+.gear{width:40px;height:40px;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--fg);display:grid;place-items:center;cursor:pointer;flex:0 0 auto}
+.gear svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2}
+h2{font-weight:800;font-size:19px;margin:22px 0 10px}
+h2 .hl{background:linear-gradient(transparent 62%,color-mix(in srgb,var(--accent2) 40%,transparent) 62%)}
+.num{font-family:var(--f-num);font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)} .small{font-size:13px}
+.kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.kpi{background:var(--surface);border-radius:12px;padding:10px 12px;min-width:0}
+.kpi .l{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.kpi .v{font-family:var(--f-num);font-size:24px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kpi.a .v{color:var(--accent)} .kpi.b .v{color:var(--accent2)}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.pcard{position:relative;background:var(--surface);border:2px solid transparent;border-radius:14px;padding:12px;text-align:left;color:var(--fg);font:inherit;cursor:pointer;display:flex;flex-direction:column;gap:6px;min-width:0}
+.pcard.sel{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 10%,var(--surface))}
+.pcard .n{font-weight:800;line-height:1.15}
+.pcard .p{font-family:var(--f-num);font-size:22px;font-weight:700;color:var(--accent2)}
+.pcard .g{font-size:12px;color:var(--muted)} .pcard .g b{color:var(--ok);font-weight:600}
+.badge{position:absolute;top:-8px;right:-6px;background:var(--accent);color:#fff;font-family:var(--f-num);font-weight:700;font-size:16px;min-width:28px;height:28px;border-radius:14px;display:grid;place-items:center;padding:0 6px}
+.chip{display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px}
+.chip.ok{background:color-mix(in srgb,var(--ok) 18%,transparent);color:var(--ok)}
+.chip.low{background:color-mix(in srgb,var(--accent2) 18%,transparent);color:var(--accent2)}
+.chip.bad{background:color-mix(in srgb,var(--bad) 20%,transparent);color:var(--bad)}
+.cart{position:fixed;left:0;right:0;bottom:calc(64px + env(safe-area-inset-bottom,0px));z-index:6;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.cart-in{max-width:608px;margin:0 auto;background:var(--surface2);border:1px solid var(--line);border-radius:16px;padding:12px;display:flex;flex-direction:column;gap:8px;box-shadow:0 -6px 24px rgba(0,0,0,.45)}
+.cart-row{display:flex;align-items:center;gap:8px;font-size:14px}
+.cart-row .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.step{display:flex;align-items:center;gap:6px}
+.step button{width:30px;height:30px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--fg);font-size:18px;cursor:pointer}
+.cart-tot{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.cart-tot .t{font-family:var(--f-num);font-size:26px;font-weight:700}
+.btn{appearance:none;border:0;border-radius:12px;padding:12px 16px;font:inherit;font-weight:800;cursor:pointer;background:var(--surface2);color:var(--fg)}
+.btn.primary{background:var(--accent);color:#fff}
+.btn.yellow{background:var(--accent2);color:#141216}
+.btn.ghost{background:transparent;border:1px solid var(--line)}
+.btn.danger{background:var(--bad);color:#fff}
+.btn.block{width:100%}
+.btn:disabled{opacity:.5}
+.btn:focus-visible,.pcard:focus-visible,.gear:focus-visible{outline:3px solid var(--accent2);outline-offset:2px}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.row > *{flex:1 1 140px;min-width:0}
+label.f{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+input,select{font:inherit;font-size:16px;color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px;width:100%;text-transform:none;letter-spacing:0}
+input:focus,select:focus{outline:2px solid var(--accent);border-color:transparent}
+.list{display:flex;flex-direction:column;background:var(--surface);border-radius:14px;overflow:hidden}
+.li{display:flex;align-items:center;gap:10px;padding:11px 12px;border-top:1px solid var(--line);min-width:0}
+.li:first-child{border-top:0}
+.li .main{flex:1;min-width:0}
+.li .t1{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.li .t2{font-size:12px;color:var(--muted)}
+.li .r{text-align:right;white-space:nowrap}
+.li .big{font-family:var(--f-num);font-size:20px;font-weight:700}
+.li.click{cursor:pointer}
+.lnk{background:none;border:0;color:var(--muted);font:inherit;font-size:13px;cursor:pointer;padding:4px}
+.lnk.danger{color:var(--bad);font-weight:700}
+.empty{padding:22px 16px;text-align:center;color:var(--muted);font-size:14px}
+.seg{display:flex;background:var(--surface);border-radius:12px;padding:4px;gap:4px}
+.seg button{flex:1;border:0;background:none;color:var(--muted);font:inherit;font-weight:600;padding:8px;border-radius:9px;cursor:pointer}
+.seg button.on{background:var(--surface2);color:var(--fg)}
+.bar{height:6px;border-radius:3px;background:var(--surface2);overflow:hidden;margin-top:5px}
+.bar i{display:block;height:100%;background:var(--accent)}
+.tabs{position:fixed;left:0;right:0;bottom:0;z-index:7;background:var(--surface);border-top:1px solid var(--line);display:flex;justify-content:center;padding-bottom:env(safe-area-inset-bottom,0px)}
+.tabs button{flex:1;max-width:140px;height:64px;border:0;background:none;color:var(--muted);font:inherit;font-size:11px;font-weight:600;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;cursor:pointer}
+.tabs svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.tabs button.on{color:var(--accent2)}
+.sheet{position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center}
+.sheet-card{background:var(--bg);border-top:3px solid var(--accent);border-radius:18px 18px 0 0;width:100%;max-width:640px;max-height:90vh;overflow:auto;padding-block:16px calc(20px + env(safe-area-inset-bottom,0px));padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:12px}
+.sheet-card h3{font-weight:800;font-size:20px;margin:0}
+.rec{display:grid;grid-template-columns:1fr 90px 34px;gap:8px;align-items:center;font-size:14px}
+.rec input{padding:8px;text-align:center}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(150px + env(safe-area-inset-bottom,0px));z-index:30;background:var(--accent2);color:#141216;font-weight:800;padding:10px 16px;border-radius:999px;max-width:calc(100% - 32px)}
+.welcome{display:flex;flex-direction:column;gap:14px;padding-top:20px}
+.welcome h1{font-size:30px;line-height:1.1;margin:0}
+.opt{display:flex;gap:12px;align-items:flex-start;background:var(--surface);border:2px solid transparent;border-radius:14px;padding:14px;cursor:pointer;color:var(--fg);font:inherit;text-align:left}
+.opt.sel{border-color:var(--accent)}
+.opt b{display:block;font-size:16px}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top" id="top" hidden><div class="brand" id="brand">Mi negocio</div>
+    <button class="gear" data-act="ajustes" aria-label="Ajustes"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button></header>
+  <main id="view"></main>
+</div>
+<div id="cart" class="cart" hidden></div>
+<nav class="tabs" id="tabs" hidden>
+  <button data-tab="vender" class="on"><svg viewBox="0 0 24 24"><path d="M6 6h15l-1.5 9h-12z"/><path d="M6 6L5 3H2"/><circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/></svg>Vender</button>
+  <button data-tab="inventario"><svg viewBox="0 0 24 24"><path d="M3 7l9-4 9 4-9 4z"/><path d="M3 7v10l9 4 9-4V7"/><path d="M12 11v10"/></svg>Inventario</button>
+  <button data-tab="productos"><svg viewBox="0 0 24 24"><path d="M5 4h14v16H5z"/><path d="M9 9h6M9 13h6M9 17h3"/></svg>Recetas</button>
+  <button data-tab="gastos"><svg viewBox="0 0 24 24"><path d="M4 6h16v12H4z"/><path d="M4 10h16"/><path d="M8 15h3"/></svg>Gastos</button>
+  <button data-tab="resumen"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Resumen</button>
+</nav>
+<div id="sheet" class="sheet" hidden><div class="sheet-card" id="sheetCard" role="dialog" aria-modal="true"></div></div>
+<div id="toast" class="toast" hidden></div>
+<input type="file" id="importFile" accept="application/json,.json" hidden>
+
+<script>
+/* ===== Almacenamiento local ===== */
+const KEY='mi-negocio-v1';
+const blank=()=>({cfg:{nombre:'',reservaPct:10,ventasMes:0},ins:{},prod:{},fijos:{},movs:[]});
+let D=blank();
+try{const raw=localStorage.getItem(KEY);if(raw)D={...blank(),...JSON.parse(raw)}}catch(e){}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(D));return true}catch(e){toast('No se pudo guardar en este celular.');return false}}
+try{navigator.storage?.persist?.()}catch(e){}
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+
+/* ===== Plantillas ===== */
+const FIJOS_BASE=[['Arriendo del local',''],['Servicios (luz, agua, gas)',''],['Internet y celular',''],['Mi sueldo',''],['Publicidad en redes',''],['Permisos, impuestos y contador','Valor del año ÷ 12'],['Desgaste de equipos','Precio del equipo ÷ meses que dura']];
+const PLANTILLAS={
+  postres:{nombre:'Mis Postres',
+    ins:[['harina','Harina de trigo','g'],['azucar','Azúcar','g'],['huevo','Huevos','und'],['leche','Leche','ml'],['mantequilla','Mantequilla','g'],['chocolate','Chocolate para cobertura','g'],['crema','Crema de leche','ml'],['condensada','Leche condensada','g'],['fresa','Fresas','g'],['vaso','Vaso con tapa 9 oz','und'],['caja','Caja para porción','und']],
+    prod:[['Brownie','Postres',6000,{harina:40,azucar:50,huevo:1,mantequilla:30,chocolate:40,caja:1}],
+          ['Tres leches en vaso','Postres en vaso',9000,{harina:30,azucar:30,huevo:1,leche:80,crema:40,condensada:40,vaso:1}],
+          ['Fresas con crema','Postres en vaso',10000,{fresa:150,crema:80,condensada:30,vaso:1}]]},
+  cocteles:{nombre:'Mis Cócteles',
+    ins:[['vaso','Vaso con tapa y pitillo','und'],['whisky','Whisky 50ml','und'],['vodka','Vodka 50ml','und'],['ron','Ron blanco 50ml','und'],['gaseosa','Gaseosa 250ml','und'],['sirope','Sirope 30ml','und'],['fruta','Fruta deshidratada','und'],['dulce','Dulce decorativo','und']],
+    prod:[['Whisky Lemonade','Cócteles',30000,{whisky:1,gaseosa:1,sirope:1,fruta:1,dulce:1,vaso:1}],
+          ['Vodka Rose','Cócteles',25000,{vodka:1,gaseosa:1,sirope:1,dulce:1,fruta:1,vaso:1}],
+          ['Mojito','Cócteles',20000,{ron:1,gaseosa:1,sirope:1,fruta:1,vaso:1}]]}
+};
+function aplicarPlantilla(tipo,nombre){
+  D=blank();D.cfg.nombre=nombre||PLANTILLAS[tipo]?.nombre||'Mi negocio';
+  FIJOS_BASE.forEach(([c,n],i)=>{const id=uid()+i;D.fijos[id]={id,concepto:c,valor:0,nota:n,orden:i}});
+  const P=PLANTILLAS[tipo];
+  if(P){P.ins.forEach(([id,nombre,unidad],i)=>D.ins[id]={id,nombre,unidad,costo:0,minimo:unidad==='und'?3:200,orden:i});
+    P.prod.forEach(([nombre,categoria,precio,receta],i)=>{const id=uid()+i;D.prod[id]={id,nombre,categoria,precio,receta,orden:i}})}
+  save();
+}
+
+/* ===== Utilidades ===== */
+const S={tab:'vender',cart:{},period:'mes',confirmDel:null,welcomeTpl:'postres'};
+const $=s=>document.querySelector(s);
+const money=n=>(n<0?'-':'')+'$'+Math.abs(Math.round(n||0)).toLocaleString('es-CO');
+const moneyU=n=>{n=+n||0;return '$'+n.toLocaleString('es-CO',{maximumFractionDigits:n<100?2:0})};
+const qty=n=>(+n||0).toLocaleString('es-CO',{maximumFractionDigits:2});
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const sorted=o=>Object.values(o).sort((a,b)=>(a.orden??99)-(b.orden??99)||String(a.nombre||a.concepto).localeCompare(b.nombre||b.concepto));
+const fmtFecha=ms=>new Date(ms).toLocaleString('es-CO',{day:'numeric',month:'short',hour:'numeric',minute:'2-digit'});
+const U=i=>i?.unidad||'und';
+function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toast._t);toast._t=setTimeout(()=>t.hidden=true,2200)}
+
+function stock(){const st={};for(const id in D.ins)st[id]=0;
+  for(const m of D.movs){if(m.tipo==='compra'||m.tipo==='ajuste')st[m.insumoId]=(st[m.insumoId]||0)+(+m.cant||0);
+    else if(m.tipo==='venta'&&m.consumo)for(const k in m.consumo)st[k]=(st[k]||0)-(+m.consumo[k]||0)}
+  return st}
+const costoProd=p=>{let c=0;for(const k in (p.receta||{}))c+=(+p.receta[k]||0)*(+D.ins[k]?.costo||0);return c};
+const faltaCosto=p=>Object.keys(p.receta||{}).some(k=>(+p.receta[k]>0)&&!(+D.ins[k]?.costo>0));
+function maxPrep(p,st){let m=Infinity;for(const k in (p.receta||{})){const q=+p.receta[k];if(q>0)m=Math.min(m,Math.floor((st[k]||0)/q))}return m===Infinity?0:Math.max(0,m)}
+const diasMes=()=>{const d=new Date();return new Date(d.getFullYear(),d.getMonth()+1,0).getDate()};
+const fijosMes=()=>Object.values(D.fijos).reduce((a,f)=>a+(+f.valor||0),0);
+const fijosPeriodo=per=>{const f=fijosMes();return per==='mes'?f:per==='semana'?f/diasMes()*7:f/diasMes()};
+function desde(per){const d=new Date();d.setHours(0,0,0,0);if(per==='semana')d.setDate(d.getDate()-6);if(per==='mes')d.setDate(1);return d.getTime()}
+function totales(per){const t0=desde(per);let ventas=0,costo=0,gastos=0,compras=0,n=0;const porProd={};
+  for(const m of D.movs){if((m.fecha||0)<t0)continue;
+    if(m.tipo==='venta'){ventas+=+m.total||0;costo+=+m.costo||0;for(const it of (m.items||[])){n+=+it.cant||0;porProd[it.nombre]=(porProd[it.nombre]||0)+(+it.cant||0)}}
+    else if(m.tipo==='gasto')gastos+=+m.valor||0;else if(m.tipo==='compra')compras+=+m.total||0}
+  return{ventas,costo,gastos,compras,n,porProd,bruta:ventas-costo}}
+function reales(per){const t=totales(per),fij=fijosPeriodo(per),antes=t.bruta-t.gastos-fij,reserva=antes>0?antes*(+D.cfg.reservaPct||0)/100:0;return{...t,fij,antes,reserva,real:antes-reserva}}
+function equilibrio(){const t=totales('mes');let margen=t.n?(t.ventas-t.costo)/t.n:0;
+  if(!margen){const ps=Object.values(D.prod).filter(p=>!faltaCosto(p));if(ps.length)margen=ps.reduce((a,p)=>a+p.precio-costoProd(p),0)/ps.length}
+  const f=fijosMes(),unidades=margen>0?Math.ceil(f/margen):0,base=+D.cfg.ventasMes||t.n||unidades;
+  return{margen,unidades,porDia:unidades?Math.ceil(unidades/diasMes()):0,vendidas:t.n,fijoUnidad:base?f/base:0,base}}
+function nivel(q,min){if(q<=0)return['bad','Agotado'];if(q<=(min||0))return['low','Bajo'];return['ok','OK']}
+
+/* ===== Vistas ===== */
+function render(){
+  const setup=!!D.cfg.nombre;
+  $('#top').hidden=!setup;$('#tabs').hidden=!setup;
+  if(!setup){$('#view').innerHTML=vBienvenida();$('#cart').hidden=true;return}
+  $('#brand').textContent=D.cfg.nombre;document.title=D.cfg.nombre;
+  document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('on',b.dataset.tab===S.tab));
+  $('#view').innerHTML=({vender:vVender,inventario:vInventario,productos:vProductos,gastos:vGastos,resumen:vResumen}[S.tab])();
+  renderCart();
+}
+function vBienvenida(){
+  const o=(k,t,d)=>`<button class="opt ${S.welcomeTpl===k?'sel':''}" data-tpl="${k}"><span><b>${t}</b><span class="small muted">${d}</span></span></button>`;
+  return `<div class="welcome"><h1>Lleva tu negocio desde el celular</h1>
+  <p class="muted" style="margin:0">Ventas, inventario por receta, costos y ganancia real. Todo se guarda en este celular.</p>
+  <label class="f">Nombre de tu negocio<input id="wNombre" placeholder="Ej: Dulces Valentina" autocomplete="off"></label>
+  <div class="small muted" style="text-transform:uppercase;letter-spacing:.06em">¿Cómo quieres empezar?</div>
+  ${o('postres','Postres','Con ejemplos: brownie, tres leches, fresas con crema. Los cambias por los tuyos.')}
+  ${o('cocteles','Cócteles o bebidas','Con ejemplos de cócteles en vaso.')}
+  ${o('vacio','Empezar en blanco','Agregas tus propios insumos y productos.')}
+  <button class="btn primary block" data-act="empezar">Empezar</button>
+  <button class="btn ghost block" data-act="importar">Ya tengo una copia de respaldo</button></div>`;
+}
+function vVender(){
+  const st=stock(),t=totales('hoy'),prods=sorted(D.prod);
+  const head=`<div class="kpis"><div class="kpi"><div class="l">Vendidos hoy</div><div class="v">${t.n}</div></div>
+    <div class="kpi b"><div class="l">Ventas hoy</div><div class="v">${money(t.ventas)}</div></div>
+    <div class="kpi a"><div class="l">Margen hoy</div><div class="v">${money(t.bruta)}</div></div></div>`;
+  if(!prods.length)return head+`<div class="empty" style="margin-top:16px">Todavía no hay productos.<br><br><button class="btn yellow" data-tab="productos">Crear mi primer producto</button></div>`;
+  const cats=[...new Set(prods.map(p=>p.categoria||'Productos'))];
+  return head+cats.map(c=>`<h2><span class="hl">${esc(c)}</span></h2><div class="grid">${prods.filter(p=>(p.categoria||'Productos')===c).map(p=>{const co=costoProd(p),q=S.cart[p.id]||0,mx=maxPrep(p,st);
+    return `<button class="pcard ${q?'sel':''}" data-add="${p.id}">${q?`<span class="badge">${q}</span>`:''}
+      <span class="n">${esc(p.nombre)}</span><span class="p">${money(p.precio)}</span>
+      <span class="g">${faltaCosto(p)?'Falta costo de insumos':`Margen <b>${money(p.precio-co)}</b>`}</span>
+      <span><span class="chip ${mx<=0?'bad':mx<=3?'low':'ok'}">${mx<=0?'Sin insumos':'Alcanza para '+mx}</span></span></button>`}).join('')}</div>`).join('')
+  +`<p class="small muted" style="margin-top:12px">Toca un producto para agregarlo. Al registrar la venta se descuenta del inventario lo que lleva su receta.</p>`;
+}
+function renderCart(){
+  const c=$('#cart'),ids=Object.keys(S.cart).filter(k=>S.cart[k]>0&&D.prod[k]);
+  if(S.tab!=='vender'||!ids.length){c.hidden=true;c.innerHTML='';return}
+  let tot=0,cost=0;ids.forEach(k=>{tot+=D.prod[k].precio*S.cart[k];cost+=costoProd(D.prod[k])*S.cart[k]});
+  c.hidden=false;
+  c.innerHTML=`<div class="cart-in">${ids.map(k=>`<div class="cart-row"><span class="nm">${esc(D.prod[k].nombre)}</span>
+    <span class="step"><button data-dec="${k}" aria-label="Quitar uno">−</button><span class="num" style="min-width:18px;text-align:center;font-size:18px">${S.cart[k]}</span><button data-add="${k}" aria-label="Agregar uno">+</button></span>
+    <span class="num" style="width:76px;text-align:right">${money(D.prod[k].precio*S.cart[k])}</span></div>`).join('')}
+    <div class="cart-tot"><div><div class="t">${money(tot)}</div><div class="small muted">Margen ${money(tot-cost)}</div></div>
+    <div class="row" style="flex:0 0 auto;flex-wrap:nowrap"><button class="btn ghost" data-act="clearCart">Borrar</button><button class="btn primary" data-act="sell">Registrar venta</button></div></div></div>`;
+}
+function vInventario(){
+  const st=stock(),ins=sorted(D.ins),tot=ins.reduce((a,i)=>a+Math.max(0,st[i.id]||0)*(+i.costo||0),0),alertas=ins.filter(i=>(st[i.id]||0)<=(i.minimo||0)).length;
+  return `<div class="kpis" style="grid-template-columns:repeat(2,minmax(0,1fr))"><div class="kpi b"><div class="l">Valor en bodega</div><div class="v">${money(tot)}</div></div>
+    <div class="kpi a"><div class="l">Por comprar</div><div class="v">${alertas}</div></div></div>
+  <div class="row" style="margin-top:12px"><button class="btn yellow" data-act="compra">+ Registrar compra</button><button class="btn ghost" data-act="nuevoIns">Nuevo insumo</button></div>
+  <h2><span class="hl">Insumos</span></h2>
+  <div class="list">${ins.length?ins.map(i=>{const q=st[i.id]||0,[cl,lb]=nivel(q,i.minimo);
+    return `<div class="li click" data-ins="${i.id}"><div class="main"><div class="t1">${esc(i.nombre)}</div>
+      <div class="t2">${+i.costo>0?moneyU(i.costo)+' por '+U(i):'<span style="color:var(--accent2)">Sin costo</span>'} · <span class="chip ${cl}">${lb}</span></div></div>
+      <div class="r"><div class="big num">${qty(q)}</div><div class="t2">${U(i)}</div></div></div>`}).join(''):'<div class="empty">No hay insumos. Agrega lo que compras para preparar tus productos.</div>'}</div>
+  <p class="small muted">Toca un insumo para cambiar su costo, el mínimo o ajustar el conteo real.</p>`;
+}
+function vProductos(){
+  const prods=sorted(D.prod),eq=equilibrio(),fu=eq.fijoUnidad;
+  return `<div class="row"><button class="btn yellow" data-act="nuevoProd">+ Producto con receta</button><button class="btn ghost" data-act="nuevoReventa">+ Producto de reventa</button></div>
+  <h2><span class="hl">Costo real por unidad</span></h2>
+  <p class="small muted" style="margin-top:-4px">Cada unidad carga ${money(fu)} de gastos fijos (${money(fijosMes())} al mes ÷ ${eq.base||0} unidades${+D.cfg.ventasMes?' esperadas':' vendidas este mes'}).</p>
+  <div class="list">${prods.length?prods.map(p=>{const c=costoProd(p),real=c+fu,g=p.precio-real,m=p.precio?g/p.precio:0,falta=faltaCosto(p);
+    return `<div class="li click" data-prod="${p.id}"><div class="main"><div class="t1">${esc(p.nombre)}</div>
+      <div class="t2">${esc(p.categoria||'Productos')} · ${Object.keys(p.receta||{}).filter(k=>+p.receta[k]>0).length} insumos</div>
+      ${falta?'<div class="t2" style="color:var(--accent2)">Pon el costo de los insumos en Inventario</div>':`<div class="t2">Insumos ${money(c)} + fijos ${money(fu)} = <b style="color:var(--fg)">${money(real)}</b></div><div class="bar"><i style="width:${Math.max(0,Math.min(100,m*100)).toFixed(0)}%"></i></div>`}</div>
+      <div class="r"><div class="big num">${money(p.precio)}</div><div class="t2" style="color:${g>=0?'var(--ok)':'var(--bad)'}">${falta?'—':'Ganas '+money(g)}</div><div class="t2">${falta?'':Math.round(m*100)+'% real'}</div></div></div>`}).join(''):'<div class="empty">No hay productos todavía.</div>'}</div>
+  <p class="small muted">La barra es lo que de verdad te queda de cada venta después de insumos, arriendo, servicios y tu sueldo.</p>`;
+}
+function vGastos(){
+  const fs=sorted(D.fijos),f=fijosMes(),eq=equilibrio(),pct=eq.unidades?Math.min(100,eq.vendidas/eq.unidades*100):0,tv=totales('mes');
+  return `<div class="kpis" style="grid-template-columns:repeat(2,minmax(0,1fr))"><div class="kpi b"><div class="l">Fijos al mes</div><div class="v">${money(f)}</div></div>
+    <div class="kpi a"><div class="l">Por día</div><div class="v">${money(f/diasMes())}</div></div></div>
+  <h2><span class="hl">Gastos fijos del mes</span></h2>
+  <div class="list">${fs.length?fs.map(x=>`<div class="li click" data-fijo="${x.id}"><div class="main"><div class="t1">${esc(x.concepto)}</div><div class="t2">${esc(x.nota||'Cada mes')}</div></div><div class="r"><div class="big num">${+x.valor?money(x.valor):'<span style="color:var(--accent2)">Poner valor</span>'}</div></div></div>`).join(''):'<div class="empty">Agrega arriendo, servicios y tu sueldo.</div>'}</div>
+  <div class="row" style="margin-top:10px"><button class="btn ghost" data-act="nuevoFijo">+ Otro gasto fijo</button></div>
+  <h2><span class="hl">¿Cuánto debo vender?</span></h2>
+  <div class="list">
+    <div class="li"><div class="main"><div class="t1">Para cubrir los gastos fijos</div><div class="t2">Margen promedio ${money(eq.margen)} por unidad</div></div><div class="r"><div class="big num">${eq.unidades}</div><div class="t2">unidades/mes</div></div></div>
+    <div class="li"><div class="main"><div class="t1">Eso es por día</div></div><div class="r"><div class="big num">${eq.porDia}</div><div class="t2">unidades</div></div></div>
+    <div class="li"><div class="main"><div class="t1">Llevas este mes</div><div class="bar"><i style="width:${pct.toFixed(0)}%;background:${pct>=100?'var(--ok)':'var(--accent)'}"></i></div></div><div class="r"><div class="big num">${eq.vendidas}</div><div class="t2">${pct>=100?'Ya cubriste':'Faltan '+Math.max(0,eq.unidades-eq.vendidas)}</div></div></div></div>
+  <h2><span class="hl">Gastos del día a día</span></h2>
+  <p class="small muted" style="margin-top:-4px">Lo que no es fijo: transporte, domicilios, publicidad puntual, empaques sueltos. Este mes van ${money(tv.gastos)}.</p>
+  <button class="btn yellow block" data-act="gasto">+ Registrar gasto</button>`;
+}
+function vResumen(){
+  const t=reales(S.period),t0=desde(S.period),movs=D.movs.filter(m=>(m.fecha||0)>=t0).sort((a,b)=>b.fecha-a.fecha);
+  const top=Object.entries(t.porProd).sort((a,b)=>b[1]-a[1]),mx=top[0]?.[1]||1,lbl={venta:'Venta',compra:'Compra',gasto:'Gasto',ajuste:'Ajuste'};
+  return `<div class="seg">${['hoy','semana','mes'].map(p=>`<button data-per="${p}" class="${S.period===p?'on':''}">${{hoy:'Hoy',semana:'7 días',mes:'Este mes'}[p]}</button>`).join('')}</div>
+  <div class="list" style="margin-top:12px">
+    <div class="li"><div class="main">Ventas <span class="t2">(${t.n} unidades)</span></div><div class="big num">${money(t.ventas)}</div></div>
+    <div class="li"><div class="main">Costo de insumos vendidos</div><div class="big num muted">−${money(t.costo)}</div></div>
+    <div class="li" style="background:var(--surface2)"><div class="main" style="font-weight:600">Utilidad bruta</div><div class="big num">${money(t.bruta)}</div></div>
+    <div class="li"><div class="main">Gastos del día a día</div><div class="big num muted">−${money(t.gastos)}</div></div>
+    <div class="li"><div class="main">Gastos fijos <span class="t2">(${S.period==='mes'?'mes completo':S.period==='semana'?'7 días':'1 día'})</span></div><div class="big num muted">−${money(t.fij)}</div></div>
+    <div class="li" style="background:var(--surface2)"><div class="main" style="font-weight:600">Utilidad operativa</div><div class="big num" style="color:${t.antes>=0?'var(--fg)':'var(--bad)'}">${money(t.antes)}</div></div>
+    <div class="li"><div class="main">Reserva ${+D.cfg.reservaPct||0}% <span class="t2">(imprevistos y reinversión)</span></div><div class="big num muted">−${money(t.reserva)}</div></div>
+    <div class="li" style="background:color-mix(in srgb,var(--accent) 14%,var(--surface))"><div class="main" style="font-weight:800">Ganancia real</div><div class="big num" style="color:${t.real>=0?'var(--ok)':'var(--bad)'};font-size:28px">${money(t.real)}</div></div>
+    <div class="li"><div class="main t2">Plata que salió en compras de insumos</div><div class="num muted">${money(t.compras)}</div></div></div>
+  ${top.length?`<h2><span class="hl">Lo más vendido</span></h2><div class="list">${top.map(([n,q])=>`<div class="li"><div class="main"><div class="t1">${esc(n)}</div><div class="bar"><i style="width:${(q/mx*100).toFixed(0)}%"></i></div></div><div class="big num">${q}</div></div>`).join('')}</div>`:''}
+  <h2><span class="hl">Historial</span></h2>
+  <div class="list">${movs.length?movs.slice(0,150).map(m=>{
+    const desc=m.tipo==='venta'?(m.items||[]).map(i=>i.cant+'× '+i.nombre).join(', '):m.tipo==='gasto'?m.concepto:(m.tipo==='ajuste'&&m.cant>0?'+':'')+qty(m.cant)+' '+(m.unidad||'')+' '+(m.nombre||'');
+    const val=m.tipo==='venta'?m.total:m.tipo==='gasto'?-m.valor:m.tipo==='compra'?-m.total:null;
+    return `<div class="li"><div class="main"><div class="t1">${lbl[m.tipo]}: ${esc(desc)}</div><div class="t2">${fmtFecha(m.fecha)}${m.nota?' · '+esc(m.nota):''}</div></div>
+      <div class="r">${val!=null?`<div class="num" style="font-size:18px;color:${val>=0?'var(--ok)':'var(--fg)'}">${money(val)}</div>`:''}
+      <button class="lnk ${S.confirmDel===m.id?'danger':''}" data-del="${m.id}">${S.confirmDel===m.id?'¿Borrar? Sí':'Borrar'}</button></div></div>`}).join(''):'<div class="empty">Sin movimientos en este periodo.</div>'}</div>`;
+}
+
+/* ===== Formularios ===== */
+function openSheet(html,onSubmit){
+  const c=$('#sheetCard');c.innerHTML=html;$('#sheet').hidden=false;
+  const f=c.querySelector('form');if(f)f.addEventListener('submit',e=>{e.preventDefault();onSubmit(new FormData(f))});
+  setTimeout(()=>c.querySelector('input,select')?.focus(),60);
+}
+function closeSheet(){$('#sheet').hidden=true;$('#sheetCard').innerHTML='';render()}
+const btns=(ok,extra)=>`<div class="row">${extra||'<button type="button" class="btn ghost" data-act="close">Cancelar</button>'}<button type="submit" class="btn yellow">${ok}</button></div>`;
+const insOpts=sel=>sorted(D.ins).map(i=>`<option value="${i.id}" ${i.id===sel?'selected':''}>${esc(i.nombre)} (${U(i)})</option>`).join('');
+const unidadSel=(v)=>`<select name="unidad" id="iUni">${[['und','Unidades (und)'],['g','Gramos (g)'],['ml','Mililitros (ml)']].map(([k,t])=>`<option value="${k}" ${v===k?'selected':''}>${t}</option>`).join('')}</select>`;
+function done(msg){if(save()){toast(msg);closeSheet()}}
+
+function sheetCompra(){
+  const first=sorted(D.ins)[0];if(!first){toast('Primero agrega un insumo.');return}
+  openSheet(`<h3>Registrar compra</h3><form style="display:flex;flex-direction:column;gap:12px">
+    <label class="f">Insumo<select name="ins" id="cIns">${insOpts(first.id)}</select></label>
+    <div class="row"><label class="f">¿Cuántos compraste?<input id="cPaq" name="paq" type="number" inputmode="decimal" min="0.01" step="any" value="1" required></label>
+    <label class="f" id="cContL">Contenido de cada uno<input id="cCont" name="cont" type="number" inputmode="decimal" min="0.01" step="any" value="1" required></label></div>
+    <label class="f">Precio de cada uno<input id="cPre" name="pre" type="number" inputmode="numeric" min="0" step="any" placeholder="Ej: 5200" required></label>
+    <div class="small muted" id="cTot"></div>${btns('Guardar compra')}</form>`,
+  fd=>{const id=fd.get('ins'),paq=+fd.get('paq'),cont=+fd.get('cont'),pre=+fd.get('pre'),i=D.ins[id],cant=paq*cont,cu=cont?pre/cont:0;
+    D.movs.push({id:uid(),tipo:'compra',fecha:Date.now(),insumoId:id,nombre:i.nombre,unidad:U(i),cant,costoUnit:cu,total:paq*pre});
+    i.costo=cu;i.ultimoCont=cont;done('Compra guardada: +'+qty(cant)+' '+U(i))});
+  const upd=()=>{const i=D.ins[$('#cIns').value],u=U(i),paq=+$('#cPaq').value||0,cont=+$('#cCont').value||0,pre=+$('#cPre').value||0;
+    $('#cContL').firstChild.textContent=u==='und'?'Unidades en cada paquete':'Contenido de cada uno ('+u+')';
+    $('#cTot').textContent=`Entran ${qty(paq*cont)} ${u} · Total ${money(paq*pre)}`+(cont&&pre?` · Queda a ${moneyU(pre/cont)} por ${u}`:'')};
+  $('#cIns').addEventListener('change',()=>{const i=D.ins[$('#cIns').value];$('#cCont').value=i.ultimoCont||(U(i)==='und'?1:'');upd()});
+  ['cPaq','cCont','cPre'].forEach(k=>$('#'+k).addEventListener('input',upd));upd();
+}
+function sheetInsumo(id){
+  const i=id?D.ins[id]:null,st=stock();
+  openSheet(`<h3>${i?esc(i.nombre):'Nuevo insumo'}</h3><form style="display:flex;flex-direction:column;gap:12px">
+    <label class="f">Nombre<input id="iNom" name="nombre" value="${esc(i?.nombre||'')}" placeholder="Ej: Azúcar" required></label>
+    <div class="row"><label class="f">Se mide en${unidadSel(i?.unidad||'und')}</label>
+    <label class="f">Costo por unidad de medida<input id="iCosto" name="costo" type="number" inputmode="decimal" min="0" step="any" value="${i?(+i.costo||''):''}" placeholder="Se calcula al comprar"></label></div>
+    <label class="f">Avisar cuando queden menos de<input id="iMin" name="minimo" type="number" inputmode="decimal" min="0" step="any" value="${i?.minimo??3}"></label>
+    ${i?`<label class="f">Conteo real (hoy dice ${qty(st[id]||0)} ${U(i)})<input id="iConteo" name="conteo" type="number" inputmode="decimal" step="any" placeholder="Vacío si está bien"></label>`:''}
+    ${btns('Guardar',i?`<button type="button" class="btn ghost" data-delins="${id}">Eliminar</button>`:'')}</form>`,
+  fd=>{const data={nombre:String(fd.get('nombre')).trim(),unidad:fd.get('unidad'),costo:+fd.get('costo')||0,minimo:+fd.get('minimo')||0};
+    if(i){Object.assign(i,data);const c=fd.get('conteo');if(c!==null&&c!==''){const diff=+c-(st[id]||0);if(diff)D.movs.push({id:uid(),tipo:'ajuste',fecha:Date.now(),insumoId:id,nombre:data.nombre,unidad:data.unidad,cant:diff,nota:'Conteo real'})}}
+    else{const nid=uid();D.ins[nid]={id:nid,...data,orden:50}}
+    done('Insumo guardado')});
+}
+function sheetProducto(id){
+  const p=id?D.prod[id]:null,ins=sorted(D.ins);
+  if(!ins.length){toast('Primero agrega insumos en Inventario.');return}
+  const cats=[...new Set(Object.values(D.prod).map(x=>x.categoria||'Productos'))];
+  openSheet(`<h3>${p?esc(p.nombre):'Nuevo producto'}</h3><form style="display:flex;flex-direction:column;gap:12px">
+    <label class="f">Nombre<input id="pNom" name="nombre" value="${esc(p?.nombre||'')}" required></label>
+    <div class="row"><label class="f">Precio de venta<input id="pPre" name="precio" type="number" inputmode="numeric" min="0" step="any" value="${p?.precio||''}" required></label>
+    <label class="f">Categoría<input id="pCat" name="categoria" list="catList" value="${esc(p?.categoria||'')}" placeholder="Ej: Tortas"></label></div>
+    <datalist id="catList">${cats.map(c=>`<option value="${esc(c)}">`).join('')}</datalist>
+    <div class="small muted">Receta: cuánto lleva de cada insumo para UNA unidad (0 si no lleva).</div>
+    <div style="display:flex;flex-direction:column;gap:6px">${ins.map(i=>`<div class="rec"><span>${esc(i.nombre)}</span><input id="r_${i.id}" name="r_${i.id}" type="number" inputmode="decimal" min="0" step="any" value="${+(p?.receta?.[i.id])||0}"><span class="small muted">${U(i)}</span></div>`).join('')}</div>
+    ${btns('Guardar',p?`<button type="button" class="btn ghost" data-delprod="${id}">Eliminar</button>`:'')}</form>`,
+  fd=>{const receta={};for(const i of ins){const q=+fd.get('r_'+i.id)||0;if(q>0)receta[i.id]=q}
+    const nid=id||uid();D.prod[nid]={id:nid,nombre:String(fd.get('nombre')).trim(),precio:+fd.get('precio')||0,categoria:String(fd.get('categoria')||'').trim()||'Productos',receta,orden:p?.orden??50};
+    done('Producto guardado')});
+}
+function sheetReventa(){
+  openSheet(`<h3>Producto de reventa</h3><p class="small muted" style="margin:0">Algo que compras listo y vendes igual: una bebida, un licor, un empaque de galletas.</p>
+    <form style="display:flex;flex-direction:column;gap:12px">
+    <label class="f">Nombre<input id="rvNom" name="nombre" placeholder="Ej: Gaseosa 400ml" required></label>
+    <div class="row"><label class="f">Te cuesta<input id="rvCos" name="costo" type="number" inputmode="numeric" min="0" step="any" required></label>
+    <label class="f">Lo vendes a<input id="rvPre" name="precio" type="number" inputmode="numeric" min="0" step="any" required></label></div>
+    <div class="row"><label class="f">Unidades que tienes<input id="rvCant" name="cant" type="number" inputmode="numeric" min="0" step="1" value="0"></label>
+    <label class="f">Categoría<input id="rvCat" name="categoria" value="Reventa"></label></div>
+    ${btns('Guardar')}</form>`,
+  fd=>{const nombre=String(fd.get('nombre')).trim(),costo=+fd.get('costo')||0,cant=+fd.get('cant')||0,iid=uid(),pid=uid()+'p';
+    D.ins[iid]={id:iid,nombre,unidad:'und',costo,minimo:2,orden:60};
+    D.prod[pid]={id:pid,nombre,precio:+fd.get('precio')||0,categoria:String(fd.get('categoria')||'Reventa').trim(),receta:{[iid]:1},orden:60};
+    if(cant>0)D.movs.push({id:uid(),tipo:'compra',fecha:Date.now(),insumoId:iid,nombre,unidad:'und',cant,costoUnit:costo,total:cant*costo});
+    done('Producto agregado')});
+}
+function sheetFijo(id){
+  const x=id?D.fijos[id]:null;
+  openSheet(`<h3>${x?esc(x.concepto):'Nuevo gasto fijo'}</h3><form style="display:flex;flex-direction:column;gap:12px">
+    <label class="f">Concepto<input id="fCon" name="concepto" value="${esc(x?.concepto||'')}" required></label>
+    <label class="f">Valor al mes<input id="fVal" name="valor" type="number" inputmode="numeric" min="0" step="any" value="${+x?.valor||''}" required></label>
+    <label class="f">Nota (opcional)<input id="fNota" name="nota" value="${esc(x?.nota||'')}" placeholder="Ej: se paga el día 5"></label>
+    ${btns('Guardar',x?`<button type="button" class="btn ghost" data-delfijo="${id}">Eliminar</button>`:'')}</form>`,
+  fd=>{const nid=id||uid();D.fijos[nid]={id:nid,concepto:String(fd.get('concepto')).trim(),valor:+fd.get('valor')||0,nota:String(fd.get('nota')||'').trim(),orden:x?.orden??50};done('Gasto fijo guardado')});
+}
+function sheetGasto(){
+  openSheet(`<h3>Registrar gasto</h3><form style="display:flex;flex-direction:column;gap:12px">
+    <label class="f">Concepto<input id="gCon" name="concepto" placeholder="Ej: Transporte, domicilio" required></label>
+    <label class="f">Valor<input id="gVal" name="valor" type="number" inputmode="numeric" min="0" step="any" required></label>${btns('Guardar gasto')}</form>`,
+  fd=>{D.movs.push({id:uid(),tipo:'gasto',fecha:Date.now(),concepto:String(fd.get('concepto')).trim(),valor:+fd.get('valor')||0});done('Gasto guardado')});
+}
+function sheetAjustes(){
+  openSheet(`<h3>Ajustes</h3><form style="display:flex;flex-direction:column;gap:12px">
+    <label class="f">Nombre del negocio<input id="aNom" name="nombre" value="${esc(D.cfg.nombre)}" required></label>
+    <label class="f">Reserva para imprevistos y reinversión (%)<input id="aRes" name="reservaPct" type="number" inputmode="numeric" min="0" max="100" step="1" value="${+D.cfg.reservaPct||0}"></label>
+    <label class="f">Unidades que esperas vender al mes<input id="aVen" name="ventasMes" type="number" inputmode="numeric" min="0" step="1" value="${+D.cfg.ventasMes||''}" placeholder="Vacío = lo vendido este mes"></label>
+    ${btns('Guardar')}</form>
+    <h3 style="margin-top:8px">Copia de respaldo</h3>
+    <p class="small muted" style="margin:0">Tus datos viven solo en este celular. Descarga una copia cada semana y guárdala en Drive o WhatsApp. Si cambias de celular, la cargas y sigues donde ibas.</p>
+    <div class="row"><button type="button" class="btn ghost" data-act="exportar">Descargar copia</button><button type="button" class="btn ghost" data-act="importar">Cargar copia</button></div>
+    <button type="button" class="btn ghost" data-act="borrarTodo" id="bTodo" style="color:var(--bad)">Borrar todo y empezar de cero</button>`,
+  fd=>{D.cfg.nombre=String(fd.get('nombre')).trim()||D.cfg.nombre;D.cfg.reservaPct=+fd.get('reservaPct')||0;D.cfg.ventasMes=+fd.get('ventasMes')||0;done('Ajustes guardados')});
+}
+function exportar(){
+  const blob=new Blob([JSON.stringify({app:'mi-negocio',version:1,fecha:new Date().toISOString(),datos:D},null,1)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download=(D.cfg.nombre||'negocio').replace(/[^\w-]+/g,'-')+'-respaldo-'+new Date().toISOString().slice(0,10)+'.json';
+  document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500);toast('Copia descargada');
+}
+$('#importFile').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();
+  r.onload=()=>{try{const j=JSON.parse(r.result),d=j.datos||j;if(!d.cfg||!d.ins)throw 0;D={...blank(),...d};save();$('#sheet').hidden=true;S.tab='vender';render();toast('Copia cargada')}catch(err){toast('Ese archivo no es una copia válida.')}e.target.value=''};r.readAsText(f)});
+
+/* ===== Acciones ===== */
+function vender(btn){
+  const ids=Object.keys(S.cart).filter(k=>S.cart[k]>0&&D.prod[k]);if(!ids.length)return;
+  const items=[],consumo={};let total=0,costo=0;
+  for(const k of ids){const p=D.prod[k],q=S.cart[k],c=costoProd(p);items.push({productoId:k,nombre:p.nombre,cant:q,precio:p.precio,costoUnit:c});total+=p.precio*q;costo+=c*q;
+    for(const r in (p.receta||{}))consumo[r]=(consumo[r]||0)+(+p.receta[r])*q}
+  D.movs.push({id:uid(),tipo:'venta',fecha:Date.now(),items,consumo,total,costo});
+  if(save()){S.cart={};toast('Venta registrada: '+money(total));render()}
+}
+function confirmar(t,fn){if(!t.dataset.armed){t.dataset.armed='1';t.textContent='¿Seguro? Toca otra vez';t.classList.add('danger');return}fn()}
+document.addEventListener('click',e=>{
+  const t=e.target.closest('button,[data-ins],[data-prod],[data-fijo]');if(!t)return;const d=t.dataset;
+  if(d.tpl){S.welcomeTpl=d.tpl;const n=$('#wNombre')?.value;render();if(n)$('#wNombre').value=n;return}
+  if(d.tab){S.tab=d.tab;S.confirmDel=null;render();window.scrollTo(0,0);return}
+  if(d.add){S.cart[d.add]=(S.cart[d.add]||0)+1;render();return}
+  if(d.dec){S.cart[d.dec]=Math.max(0,(S.cart[d.dec]||0)-1);if(!S.cart[d.dec])delete S.cart[d.dec];render();return}
+  if(d.per){S.period=d.per;render();return}
+  if(d.del){if(S.confirmDel!==d.del){S.confirmDel=d.del;render();return}S.confirmDel=null;D.movs=D.movs.filter(m=>m.id!==d.del);save();render();toast('Movimiento borrado');return}
+  if(d.ins){sheetInsumo(d.ins);return} if(d.prod){sheetProducto(d.prod);return} if(d.fijo){sheetFijo(d.fijo);return}
+  if(d.delins){confirmar(t,()=>{delete D.ins[d.delins];for(const p of Object.values(D.prod))delete p.receta?.[d.delins];done('Insumo eliminado')});return}
+  if(d.delprod){confirmar(t,()=>{delete D.prod[d.delprod];delete S.cart[d.delprod];done('Producto eliminado')});return}
+  if(d.delfijo){confirmar(t,()=>{delete D.fijos[d.delfijo];done('Gasto fijo eliminado')});return}
+  switch(d.act){
+    case 'empezar':{const n=($('#wNombre').value||'').trim();if(!n){toast('Escribe el nombre de tu negocio.');$('#wNombre').focus();return}
+      aplicarPlantilla(S.welcomeTpl,n);S.tab=S.welcomeTpl==='vacio'?'inventario':'vender';render();toast('¡Listo! Pon los costos en Inventario');break}
+    case 'close':closeSheet();break;
+    case 'clearCart':S.cart={};render();break;
+    case 'sell':vender(t);break;
+    case 'compra':sheetCompra();break;
+    case 'nuevoIns':sheetInsumo();break;
+    case 'nuevoProd':sheetProducto();break;
+    case 'nuevoReventa':sheetReventa();break;
+    case 'nuevoFijo':sheetFijo();break;
+    case 'gasto':sheetGasto();break;
+    case 'ajustes':sheetAjustes();break;
+    case 'exportar':exportar();break;
+    case 'importar':$('#importFile').click();break;
+    case 'borrarTodo':confirmar(t,()=>{try{localStorage.removeItem(KEY)}catch(e){}D=blank();S.cart={};$('#sheet').hidden=true;render()});break;
+  }
+});
+$('#sheet').addEventListener('click',e=>{if(e.target.id==='sheet')closeSheet()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#sheet').hidden)closeSheet()});
+render();
+if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+</script>
+</body>
+</html>
