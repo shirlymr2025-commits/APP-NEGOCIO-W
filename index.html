@@ -210,7 +210,7 @@ function iniciar(nombre,modulos,ejemplos){
 }
 
 /* ===== Utilidades ===== */
-const S={mesOff:0,anio:new Date().getFullYear(),tab:'vender',cart:{},period:'mes',confirmDel:null,wMods:{recetas:false,reventa:false,ropa:false},wEj:true};
+const S={mesOff:0,anio:new Date().getFullYear(),tab:'vender',cart:{},period:'mes',confirmDel:null,wMods:{recetas:false,reventa:false,ropa:false},wEj:false};
 const $=s=>document.querySelector(s);
 const money=n=>(n<0?'-':'')+'$'+Math.abs(Math.round(n||0)).toLocaleString('es-CO');
 const moneyU=n=>{n=+n||0;return '$'+n.toLocaleString('es-CO',{maximumFractionDigits:n<100?2:0})};
@@ -277,8 +277,7 @@ function vBienvenida(){
   <label class="f">Nombre de tu negocio<input id="wNombre" placeholder="Ej: Dulces Valentina" autocomplete="off"></label>
   <div class="small muted" style="text-transform:uppercase;letter-spacing:.06em">¿Qué vendes? Marca todo lo que aplique</div>
   ${o('recetas')}${o('reventa')}${o('ropa')}
-  <button class="opt ${S.wEj?'sel':''}" data-wej="1" style="padding:10px 14px"><span class="chk">${S.wEj?'✓':''}</span><span class="small">Cargar productos de ejemplo para ver cómo funciona</span></button>
-  <button class="btn primary block" data-act="empezar">Empezar</button>
+    <button class="btn primary block" data-act="empezar">Empezar</button>
   <button class="btn ghost block" data-act="importar">Ya tengo una copia de respaldo</button>
   <p class="small muted" style="margin:0">Puedes cambiar lo que vendes después en Ajustes.</p></div>`;
 }
@@ -610,7 +609,7 @@ document.addEventListener('click',e=>{
   switch(d.act){
     case 'empezar':{const n=($('#wNombre').value||'').trim();if(!n){toast('Escribe el nombre de tu negocio.');$('#wNombre').focus();return}
       if(!Object.values(S.wMods).some(Boolean)){toast('Marca al menos una opción de lo que vendes.');return}
-      iniciar(n,S.wMods,S.wEj);S.tab=S.wEj?'vender':'productos';render();toast(S.wEj?'¡Listo! Cambia los ejemplos por tus productos':'¡Listo! Crea tu primer producto');break}
+      iniciar(n,S.wMods,S.wEj);S.tab=S.wEj?'vender':'productos';render();toast('¡Listo! Crea tu primer producto');break}
     case 'close':closeSheet();break;
     case 'clearCart':S.cart={};render();break;
     case 'sell':vender(t);break;
