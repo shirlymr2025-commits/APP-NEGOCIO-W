@@ -365,7 +365,7 @@ function deudores(){const g={};
   return Object.values(g).sort((a,b)=>b.debe-a.debe)}
 const totalFiado=()=>D.movs.reduce((a,m)=>a+saldo(m),0);
 const hace=ms=>{const d=Math.floor((Date.now()-ms)/864e5);return d<=0?'hoy':d===1?'hace 1 día':'hace '+d+' días'};
-function fiadoStrip(){const t=totalFiado();if(t<=0)return '';const n=deudores().length;
+function fiadoStrip(){const t=totalFiado();if(t<=0)return `<button class="cajastrip" data-tab="fiados" style="margin-top:8px"><span><b>Fiados</b><span class="small muted">Nadie te debe</span></span><span class="chip ok">Al día</span></button>`;const n=deudores().length;
   return `<button class="cajastrip" data-tab="fiados" style="margin-top:8px"><span><b>Te deben ${money(t)}</b><span class="small muted">${n} ${n===1?'cliente':'clientes'} con fiado</span></span><span class="chip low">Ver fiados</span></button>`}
 function vFiados(){
   const ds=deudores(),tot=ds.reduce((a,x)=>a+x.debe,0);
