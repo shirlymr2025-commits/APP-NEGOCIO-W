@@ -133,6 +133,11 @@ input[type=color]{height:44px;padding:4px;cursor:pointer}
 .rp-head img{width:40px;height:40px;border-radius:8px;object-fit:cover}
 .rp-row{display:flex;justify-content:space-between;gap:10px}.rp-row span:first-child{min-width:0}
 .rp-tot{font-weight:800;font-size:17px;border-top:1px solid #e2e1da;padding-top:6px;margin-top:2px}
+.aviso{background:color-mix(in srgb,var(--accent2) 16%,var(--surface));border:1px solid color-mix(in srgb,var(--accent2) 50%,transparent);border-radius:12px;padding:10px 12px;font-size:13px}
+.cajastrip{width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--surface);border:1px dashed var(--line);border-radius:14px;padding:12px 14px;color:var(--fg);font:inherit;text-align:left;cursor:pointer}
+.cajastrip.open{border:1px solid color-mix(in srgb,var(--ok) 55%,transparent);background:color-mix(in srgb,var(--ok) 8%,var(--surface))}
+.cajastrip > span{display:flex;flex-direction:column;gap:2px;min-width:0}.cajastrip .r{align-items:flex-end;text-align:right}
+.chkline{display:flex;gap:10px;align-items:center;font-size:14px;cursor:pointer}.chkline input{width:20px;height:20px;accent-color:var(--accent)}
 [hidden]{display:none!important}
 </style>
 </head>
@@ -159,7 +164,7 @@ input[type=color]{height:44px;padding:4px;cursor:pointer}
 <script>
 /* ===== Almacenamiento local ===== */
 const KEY='mi-negocio-v1';
-const blank=()=>({cfg:{nombre:'',reservaPct:10,ventasMes:0},ins:{},prod:{},fijos:{},movs:[]});
+const blank=()=>({cfg:{nombre:'',reservaPct:10,ventasMes:0},ins:{},prod:{},fijos:{},movs:[],cajas:[]});
 let D=blank();
 try{const raw=localStorage.getItem(KEY);if(raw)D={...blank(),...JSON.parse(raw)}}catch(e){}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(D));return true}catch(e){toast('No se pudo guardar en este celular.');return false}}
@@ -270,6 +275,83 @@ function lineaCart(k){const [pid,iid]=k.split('|'),p=D.prod[pid];if(!p)return nu
 const enCart=pid=>Object.keys(S.cart).filter(k=>k===pid||k.startsWith(pid+'|')).reduce((a,k)=>a+S.cart[k],0);
 function nivel(q,min){if(q<=0)return['bad','Agotado'];if(q<=(min||0))return['low','Bajo'];return['ok','OK']}
 
+/* ===== Caja ===== */
+const cajaAbierta=()=>(D.cajas||[]).find(c=>!c.cerrada)||null;
+function cuentaCaja(c){
+  const t1=c.cerrada||Infinity,en=m=>(m.fecha||0)>=c.abierta&&(m.fecha||0)<t1;
+  let ventasEf=0,nEf=0,gastos=0,compras=0;const otros={};
+  for(const m of D.movs){if(!en(m))continue;
+    if(m.tipo==='venta'){const pg=m.pago||'Efectivo';if(pg==='Efectivo'){ventasEf+=+m.total||0;nEf++}else otros[pg]=(otros[pg]||0)+(+m.total||0)}
+    else if(m.tipo==='gasto'&&m.caja)gastos+=+m.valor||0;
+    else if(m.tipo==='compra'&&m.caja)compras+=+m.total||0}
+  const ingresos=(c.movs||[]).filter(x=>x.tipo==='ingreso').reduce((a,x)=>a+x.valor,0),retiros=(c.movs||[]).filter(x=>x.tipo==='retiro').reduce((a,x)=>a+x.valor,0);
+  return{base:+c.base||0,ventasEf,nEf,gastos,compras,ingresos,retiros,otros,esperado:(+c.base||0)+ventasEf+ingresos-gastos-compras-retiros};
+}
+const difTxt=d=>Math.abs(d)<1?'<span class="chip ok">Cuadró exacto</span>':d>0?`<span class="chip low">Sobran ${money(d)}</span>`:`<span class="chip bad">Faltan ${money(-d)}</span>`;
+const horaCorta=ms=>new Date(ms).toLocaleTimeString('es-CO',{hour:'numeric',minute:'2-digit'});
+function cajaStrip(){const c=cajaAbierta();
+  if(!c)return `<button class="cajastrip" data-tab="caja"><span><b>Caja cerrada</b><span class="small muted">Ábrela con la base del día</span></span><span class="chip low">Abrir caja</span></button>`;
+  const k=cuentaCaja(c);return `<button class="cajastrip open" data-tab="caja"><span><b>Caja abierta</b><span class="small muted">Desde ${horaCorta(c.abierta)}</span></span><span class="r"><span class="num" style="font-size:20px;font-weight:700">${money(k.esperado)}</span><span class="small muted">en efectivo</span></span></button>`}
+function desglose(k){
+  return `<div class="li"><div class="main">Base inicial</div><div class="big num">${money(k.base)}</div></div>
+    <div class="li"><div class="main">+ Ventas en efectivo <span class="t2">(${k.nEf})</span></div><div class="big num" style="color:var(--ok)">${money(k.ventasEf)}</div></div>
+    ${k.ingresos?`<div class="li"><div class="main">+ Ingresos a la caja</div><div class="big num" style="color:var(--ok)">${money(k.ingresos)}</div></div>`:''}
+    ${k.gastos?`<div class="li"><div class="main">− Gastos pagados de la caja</div><div class="big num muted">−${money(k.gastos)}</div></div>`:''}
+    ${k.compras?`<div class="li"><div class="main">− Compras pagadas de la caja</div><div class="big num muted">−${money(k.compras)}</div></div>`:''}
+    ${k.retiros?`<div class="li"><div class="main">− Retiros</div><div class="big num muted">−${money(k.retiros)}</div></div>`:''}
+    <div class="li" style="background:color-mix(in srgb,var(--accent) 14%,var(--surface))"><div class="main" style="font-weight:800">Debe haber en efectivo</div><div class="big num" style="font-size:26px">${money(k.esperado)}</div></div>`;
+}
+function vCaja(){
+  const c=cajaAbierta(),hist=(D.cajas||[]).filter(x=>x.cerrada).sort((a,b)=>b.abierta-a.abierta);
+  const back=`<button class="lnk" data-tab="vender" style="padding:0;margin-bottom:6px">‹ Volver a vender</button>`;
+  const hl=hist.length?`<h2><span class="hl">Cierres anteriores</span></h2><div class="list">${hist.slice(0,60).map(x=>`<div class="li click" data-cierre="${x.id}"><div class="main"><div class="t1">${new Date(x.abierta).toLocaleDateString('es-CO',{weekday:'short',day:'numeric',month:'short'})}</div><div class="t2">${horaCorta(x.abierta)} a ${horaCorta(x.cerrada)} · Contado ${money(x.conteo)}</div></div><div class="r">${difTxt(x.conteo-x.esperado)}</div></div>`).join('')}</div>`:'';
+  if(!c){const ult=hist[0],sug=ult?Math.max(0,(+ult.conteo||0)-(+ult.retiroCierre||0)):'';
+    return back+`<h2 style="margin-top:4px"><span class="hl">Abrir caja</span></h2>
+    <div class="list"><div class="li" style="flex-direction:column;align-items:stretch;gap:10px">
+      <label class="f">¿Con cuánto efectivo arrancas?<input id="cjBase" type="number" inputmode="numeric" min="0" step="any" value="${sug}" placeholder="Ej: 50000"></label>
+      ${ult?`<div class="small muted">Sugerido: lo que quedó en el último cierre${+ult.retiroCierre?' menos lo que sacaste':''}.</div>`:''}
+      <button class="btn yellow block" data-act="abrirCaja">Abrir caja</button></div></div>
+    <p class="small muted">Las ventas en efectivo que registres con la caja abierta suman solas. Lo que entra por Nequi, tarjeta o transferencia se muestra aparte porque no está en el cajón.</p>${hl}`}
+  const k=cuentaCaja(c),otros=Object.entries(k.otros);
+  return back+`<div class="kpis" style="grid-template-columns:repeat(2,minmax(0,1fr))"><div class="kpi b"><div class="l">Debe haber</div><div class="v">${money(k.esperado)}</div></div><div class="kpi"><div class="l">Abierta desde</div><div class="v" style="font-size:20px">${horaCorta(c.abierta)}</div></div></div>
+  <div class="row" style="margin-top:12px"><button class="btn ghost" data-act="cajaIngreso">+ Ingreso</button><button class="btn ghost" data-act="cajaRetiro">− Retiro</button></div>
+  <button class="btn primary block" data-act="cerrarCaja" style="margin-top:8px">Cerrar caja</button>
+  <h2><span class="hl">Efectivo en la caja</span></h2><div class="list">${desglose(k)}</div>
+  ${otros.length?`<h2><span class="hl">Otros pagos de este turno</span></h2><div class="list">${otros.map(([n,v])=>`<div class="li"><div class="main">${esc(n)}${n==='Fiado'?' <span class="chip low">Por cobrar</span>':''}</div><div class="big num">${money(v)}</div></div>`).join('')}</div><p class="small muted">No están en el cajón, por eso no suman al efectivo.</p>`:''}
+  ${(c.movs||[]).length?`<h2><span class="hl">Ingresos y retiros</span></h2><div class="list">${c.movs.slice().reverse().map(x=>`<div class="li"><div class="main"><div class="t1">${x.tipo==='retiro'?'Retiro':'Ingreso'}: ${esc(x.concepto||'')}</div><div class="t2">${horaCorta(x.fecha)}</div></div><div class="r"><div class="num" style="font-size:18px">${x.tipo==='retiro'?'−':'+'}${money(x.valor)}</div><button class="lnk ${S.confirmDel===x.id?'danger':''}" data-delcm="${x.id}">${S.confirmDel===x.id?'¿Borrar? Sí':'Borrar'}</button></div></div>`).join('')}</div>`:''}
+  ${hl}`;
+}
+function sheetCajaMov(tipo){
+  openSheet(`<h3>${tipo==='retiro'?'Sacar plata de la caja':'Meter plata a la caja'}</h3><form style="display:flex;flex-direction:column;gap:12px">
+    <label class="f">Valor<input id="cmVal" name="valor" type="number" inputmode="numeric" min="1" step="any" required></label>
+    <label class="f">Motivo<input id="cmCon" name="concepto" placeholder="${tipo==='retiro'?'Ej: Consigné en el banco, pago a proveedor':'Ej: Sencillo para cambio'}"></label>
+    ${btns('Guardar')}</form>`,
+  fd=>{const c=cajaAbierta();if(!c)return;c.movs=c.movs||[];c.movs.push({id:uid(),tipo,valor:+fd.get('valor')||0,concepto:String(fd.get('concepto')||'').trim(),fecha:Date.now()});done(tipo==='retiro'?'Retiro anotado':'Ingreso anotado')});
+}
+function sheetCerrarCaja(){
+  const c=cajaAbierta();if(!c)return;const k=cuentaCaja(c);
+  openSheet(`<h3>Cerrar caja</h3><div class="list">${desglose(k)}</div>
+    <form style="display:flex;flex-direction:column;gap:12px">
+    <label class="f">¿Cuánto efectivo contaste?<input id="ccCont" name="conteo" type="number" inputmode="numeric" min="0" step="any" required></label>
+    <div id="ccDif" class="small"></div>
+    <label class="f">¿Sacas plata al cerrar? (opcional)<input id="ccRet" name="retiro" type="number" inputmode="numeric" min="0" step="any" placeholder="Lo que no dejas de base para mañana"></label>
+    <label class="f">Nota (opcional)<input id="ccNota" name="nota" placeholder="Ej: faltante por cambio mal dado"></label>
+    ${btns('Cerrar caja')}</form>`,
+  fd=>{const conteo=+fd.get('conteo')||0;Object.assign(c,{cerrada:Date.now(),conteo,esperado:k.esperado,desglose:k,retiroCierre:+fd.get('retiro')||0,nota:String(fd.get('nota')||'').trim()});
+    const d=conteo-k.esperado;if(save()){toast(Math.abs(d)<1?'Caja cerrada: cuadró exacto':d>0?'Caja cerrada: sobran '+money(d):'Caja cerrada: faltan '+money(-d));closeSheet()}});
+  $('#ccCont').addEventListener('input',e=>{const v=e.target.value;$('#ccDif').innerHTML=v===''?'':difTxt(+v-k.esperado)});
+}
+function sheetCierre(id){
+  const x=(D.cajas||[]).find(c=>c.id===id);if(!x)return;const k=x.desglose||cuentaCaja(x);
+  openSheet(`<h3>Cierre del ${new Date(x.abierta).toLocaleDateString('es-CO',{weekday:'long',day:'numeric',month:'long'})}</h3>
+    <div class="small muted" style="margin-top:-6px">${horaCorta(x.abierta)} a ${horaCorta(x.cerrada)}</div>
+    <div class="list">${desglose(k)}<div class="li"><div class="main" style="font-weight:700">Contaste</div><div class="big num">${money(x.conteo)}</div></div><div class="li"><div class="main">Resultado</div>${difTxt(x.conteo-x.esperado)}</div>
+    ${x.retiroCierre?`<div class="li"><div class="main">Sacaste al cerrar</div><div class="big num muted">${money(x.retiroCierre)}</div></div>`:''}</div>
+    ${Object.keys(k.otros||{}).length?`<div class="small muted">Otros pagos: ${Object.entries(k.otros).map(([n,v])=>esc(n)+' '+money(v)).join(' · ')}</div>`:''}
+    ${x.nota?`<div class="small">Nota: ${esc(x.nota)}</div>`:''}
+    <button type="button" class="btn ghost block" data-act="close">Cerrar</button>`);
+}
+
 /* ===== Vistas ===== */
 function render(){
   aplicarTema();
@@ -279,7 +361,7 @@ function render(){
   $('#brand').textContent=D.cfg.nombre;document.title=D.cfg.nombre;
   const lg=$('#logo');if(D.cfg.logo){lg.src=D.cfg.logo;lg.hidden=false}else{lg.hidden=true;lg.removeAttribute('src')}
   document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('on',b.dataset.tab===S.tab));
-  $('#view').innerHTML=({vender:vVender,inventario:vInventario,productos:vProductos,gastos:vGastos,resumen:vResumen}[S.tab])();
+  $('#view').innerHTML=({vender:vVender,inventario:vInventario,productos:vProductos,gastos:vGastos,resumen:vResumen,caja:vCaja}[S.tab])();
   renderCart();
 }
 function vBienvenida(){
@@ -295,7 +377,7 @@ function vBienvenida(){
 }
 function vVender(){
   const st=stock(),t=totales('hoy'),prods=sorted(D.prod);
-  const head=`<div class="kpis"><div class="kpi"><div class="l">Vendidos hoy</div><div class="v">${t.n}</div></div>
+  const head=cajaStrip()+`<div class="kpis" style="margin-top:10px"><div class="kpi"><div class="l">Vendidos hoy</div><div class="v">${t.n}</div></div>
     <div class="kpi b"><div class="l">Ventas hoy</div><div class="v">${money(t.ventas)}</div></div>
     <div class="kpi a"><div class="l">Margen hoy</div><div class="v">${money(t.bruta)}</div></div></div>`;
   if(!prods.length)return head+`<div class="empty" style="margin-top:16px">Todavía no hay productos.<br><br><button class="btn yellow" data-tab="productos">Crear mi primer producto</button></div>`;
@@ -401,7 +483,7 @@ function vResumen(){
   ${movs.length>150?`<p class="small muted" style="margin-top:-4px">Se muestran los 150 movimientos más recientes de este periodo.</p>`:''}<div class="list">${movs.length?movs.slice(0,150).map(m=>{
     const desc=m.tipo==='venta'?(m.items||[]).map(i=>i.cant+'× '+i.nombre+(i.variante?' ('+i.variante+')':'')).join(', '):m.tipo==='gasto'?m.concepto:(m.tipo==='ajuste'&&m.cant>0?'+':'')+qty(m.cant)+' '+(m.unidad||'')+' '+(m.nombre||'');
     const val=m.tipo==='venta'?m.total:m.tipo==='gasto'?-m.valor:m.tipo==='compra'?-m.total:null;
-    return `<div class="li"><div class="main"><div class="t1">${lbl[m.tipo]}${m.num?' N° '+m.num:''}: ${esc(desc)}</div><div class="t2">${fmtFecha(m.fecha)}${m.tipo==='venta'?' · '+esc(m.pago||'Efectivo'):''}${m.cliente?' · '+esc(m.cliente):''}${m.nota?' · '+esc(m.nota):''}</div></div>
+    return `<div class="li"><div class="main"><div class="t1">${lbl[m.tipo]}${m.num?' N° '+m.num:''}: ${esc(desc)}</div><div class="t2">${fmtFecha(m.fecha)}${m.tipo==='venta'?' · '+esc(m.pago||'Efectivo'):''}${m.caja?' · De la caja':''}${m.cliente?' · '+esc(m.cliente):''}${m.nota?' · '+esc(m.nota):''}</div></div>
       <div class="r">${val!=null?`<div class="num" style="font-size:18px;color:${val>=0?'var(--ok)':'var(--fg)'}">${money(val)}</div>`:''}
       ${m.tipo==='venta'?`<button class="lnk" data-recibo="${m.id}" style="color:var(--accent);font-weight:700">Recibo</button>`:''}<button class="lnk ${S.confirmDel===m.id?'danger':''}" data-del="${m.id}">${S.confirmDel===m.id?'¿Borrar? Sí':'Borrar'}</button></div></div>`}).join(''):'<div class="empty">Sin movimientos en este periodo.</div>'}</div>`;
 }
@@ -428,12 +510,12 @@ function sheetCompra(){
     <label class="f" id="cContL">Contenido de cada uno<input id="cCont" name="cont" type="number" inputmode="decimal" min="0" step="any" value="1"></label></div></div>
     <div id="cVar" hidden><div class="small muted" style="margin-bottom:6px">Unidades que compraste de cada una</div><div id="cGrid" style="display:flex;flex-direction:column;gap:6px"></div></div>
     <label class="f">Precio de cada uno<input id="cPre" name="pre" type="number" inputmode="numeric" min="0" step="any" placeholder="Ej: 5200" required></label>
-    <div class="small muted" id="cTot"></div>${btns('Guardar compra')}</form>`,
-  fd=>{const [tipo,id]=String(fd.get('sel')).split(':'),pre=+fd.get('pre')||0;
+    <div class="small muted" id="cTot"></div>${cajaAbierta()?`<label class="chkline"><input type="checkbox" id="cCaja" name="caja" ${''}><span>Lo pagué con efectivo de la caja</span></label>`:''}${btns('Guardar compra')}</form>`,
+  fd=>{const [tipo,id]=String(fd.get('sel')).split(':'),pre=+fd.get('pre')||0,n0=D.movs.length,deCaja=!!fd.get('caja'),marcar=()=>{if(deCaja)D.movs.slice(n0).forEach(m=>m.caja=true)};
     if(tipo==='i'){const paq=+fd.get('paq')||0,cont=+fd.get('cont')||0,i=D.ins[id],cant=paq*cont,cu=cont?pre/cont:0;if(!cant){toast('Escribe cuántos compraste.');return}
-      D.movs.push({id:uid(),tipo:'compra',fecha:Date.now(),insumoId:id,nombre:i.nombre,unidad:U(i),cant,costoUnit:cu,total:paq*pre});i.costo=cu;i.ultimoCont=cont;done('Compra guardada: +'+qty(cant)+' '+U(i))}
+      D.movs.push({id:uid(),tipo:'compra',fecha:Date.now(),insumoId:id,nombre:i.nombre,unidad:U(i),cant,costoUnit:cu,total:paq*pre});marcar();i.costo=cu;i.ultimoCont=cont;done('Compra guardada: +'+qty(cant)+' '+U(i))}
     else{const p=D.prod[id];let n=0;for(const v of p.variantes){const q=+fd.get('v_'+v.ins)||0;if(q>0&&D.ins[v.ins]){compraMov(v.ins,q,pre);n+=q}if(D.ins[v.ins]&&pre)D.ins[v.ins].costo=pre}
-      if(!n){toast('Escribe al menos una cantidad.');return}done('Compra guardada: +'+n+' und')}});
+      if(!n){toast('Escribe al menos una cantidad.');return}marcar();done('Compra guardada: +'+n+' und')}});
   const upd=()=>{const [tipo,id]=$('#cSel').value.split(':'),pre=+$('#cPre').value||0;
     $('#cSimple').hidden=tipo!=='i';$('#cVar').hidden=tipo!=='p';
     if(tipo==='i'){const i=D.ins[id],u=U(i),paq=+$('#cPaq').value||0,cont=+$('#cCont').value||0;
@@ -445,7 +527,7 @@ function sheetCompra(){
     else{const p=D.prod[id];$('#cGrid').innerHTML=p.variantes.filter(v=>D.ins[v.ins]).map(v=>`<div class="rec"><span>${esc(v.nombre)}</span><input id="v_${v.ins}" name="v_${v.ins}" type="number" inputmode="numeric" min="0" step="1" value="0"><span class="small muted">und</span></div>`).join('');
       const c=D.ins[p.variantes[0]?.ins]?.costo;if(c&&!$('#cPre').value)$('#cPre').value=c}
     upd()};
-  $('#cSel').addEventListener('change',sel);$('#sheetCard').addEventListener('input',upd);sel();
+  $('#cSel').addEventListener('change',sel);$('#sheetCard form').addEventListener('input',upd);sel();
 }
 function sheetInsumo(id){
   const i=id?D.ins[id]:null,st=stock();
@@ -536,8 +618,8 @@ function sheetFijo(id){
 function sheetGasto(){
   openSheet(`<h3>Registrar gasto</h3><form style="display:flex;flex-direction:column;gap:12px">
     <label class="f">Concepto<input id="gCon" name="concepto" placeholder="Ej: Transporte, domicilio" required></label>
-    <label class="f">Valor<input id="gVal" name="valor" type="number" inputmode="numeric" min="0" step="any" required></label>${btns('Guardar gasto')}</form>`,
-  fd=>{D.movs.push({id:uid(),tipo:'gasto',fecha:Date.now(),concepto:String(fd.get('concepto')).trim(),valor:+fd.get('valor')||0});done('Gasto guardado')});
+    <label class="f">Valor<input id="gVal" name="valor" type="number" inputmode="numeric" min="0" step="any" required></label>${cajaAbierta()?`<label class="chkline"><input type="checkbox" id="gCaja" name="caja" ${"checked"}><span>Lo pagué con efectivo de la caja</span></label>`:''}${btns('Guardar gasto')}</form>`,
+  fd=>{D.movs.push({id:uid(),tipo:'gasto',fecha:Date.now(),concepto:String(fd.get('concepto')).trim(),valor:+fd.get('valor')||0,caja:!!fd.get('caja')});done('Gasto guardado')});
 }
 function sheetAjustes(){
   openSheet(`<h3>Ajustes</h3><form style="display:flex;flex-direction:column;gap:12px">
@@ -609,7 +691,10 @@ function sheetCobrar(){
   const ks=Object.keys(S.cart).filter(k=>S.cart[k]>0&&lineaCart(k));if(!ks.length)return;
   let tot=0;ks.forEach(k=>tot+=lineaCart(k).p.precio*S.cart[k]);
   const clientes=[...new Set(D.movs.filter(m=>m.tipo==='venta'&&m.cliente).map(m=>m.cliente))];
+  const need={},st=stock();ks.forEach(k=>{const l=lineaCart(k);for(const r in l.consumo)need[r]=(need[r]||0)+(+l.consumo[r])*S.cart[k]});
+  const faltan=Object.keys(need).filter(r=>D.ins[r]&&need[r]>(st[r]||0)+1e-9).map(r=>D.ins[r].nombre);
   openSheet(`<h3>Cobrar ${money(tot)}</h3>
+    ${faltan.length?`<div class="aviso">No alcanza el inventario de: <b>${faltan.map(esc).join(', ')}</b>. Puedes guardar la venta igual, pero ese inventario quedará en negativo. Revisa si falta registrar una compra.</div>`:''}
     <div class="small muted" style="margin-top:-6px">${ks.map(k=>S.cart[k]+' × '+esc(lineaCart(k).nombre)).join('<br>')}</div>
     <form style="display:flex;flex-direction:column;gap:12px">
     <div class="f" style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">¿Cómo te pagaron?</div>
@@ -700,11 +785,13 @@ async function entregarPdf(id,share){
 }
 function confirmar(t,fn){if(!t.dataset.armed){t.dataset.armed='1';t.textContent='¿Seguro? Toca otra vez';t.classList.add('danger');return}fn()}
 document.addEventListener('click',e=>{
-  const t=e.target.closest('button,[data-ins],[data-prod],[data-fijo],[data-vermes]');if(!t)return;const d=t.dataset;
+  const t=e.target.closest('button,[data-ins],[data-prod],[data-fijo],[data-vermes],[data-cierre]');if(!t)return;const d=t.dataset;
   if(d.tema){D.cfg.tema=d.tema;delete D.cfg.colores;save();aplicarTema();sheetAjustes();return}
   if(d.wmod||d.wej){if(d.wmod)S.wMods[d.wmod]=!S.wMods[d.wmod];else S.wEj=!S.wEj;const n=$('#wNombre')?.value;render();if(n)$('#wNombre').value=n;return}
   if(d.mod){const m={...mods()};m[d.mod]=!m[d.mod];if(!Object.values(m).some(Boolean)){toast('Deja al menos una opción activa.');return}D.cfg.modulos=m;save();sheetAjustes();return}
   if(d.pick){sheetElegir(d.pick);return}
+  if(d.cierre){sheetCierre(d.cierre);return}
+  if(d.delcm){if(S.confirmDel!==d.delcm){S.confirmDel=d.delcm;render();return}S.confirmDel=null;const c=cajaAbierta();if(c){c.movs=(c.movs||[]).filter(x=>x.id!==d.delcm);save()}render();return}
   if(d.pdf){entregarPdf(d.vid,d.pdf==='share');return}
   if(d.recibo){sheetRecibo(d.recibo);return}
   if(d.addv){S.cart[d.addv]=(S.cart[d.addv]||0)+1;sheetElegir(d.addv.split('|')[0]);return}
@@ -727,6 +814,11 @@ document.addEventListener('click',e=>{
     case 'close':closeSheet();break;
     case 'clearCart':S.cart={};render();break;
     case 'sell':sheetCobrar();break;
+    case 'abrirCaja':{const v=$('#cjBase').value;if(v===''){toast('Escribe con cuánto efectivo arrancas (puede ser 0).');$('#cjBase').focus();return}
+      D.cajas=D.cajas||[];D.cajas.push({id:uid(),abierta:Date.now(),cerrada:null,base:+v||0,movs:[]});if(save()){toast('Caja abierta con '+money(+v||0));S.tab='vender';render()}break}
+    case 'cajaIngreso':sheetCajaMov('ingreso');break;
+    case 'cajaRetiro':sheetCajaMov('retiro');break;
+    case 'cerrarCaja':sheetCerrarCaja();break;
     case 'datosRecibo':sheetDatosRecibo(d.volver);break;
     case 'compra':sheetCompra();break;
     case 'nuevoIns':sheetInsumo();break;
