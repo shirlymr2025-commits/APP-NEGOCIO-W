@@ -122,6 +122,17 @@ input[type=color]{height:44px;padding:4px;cursor:pointer}
 .pnav{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:10px}
 .pnav b{font-size:17px}
 .pnav .btn{padding:8px 16px;font-size:20px;line-height:1}
+.paygrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.pay{position:relative;cursor:pointer}.pay input{position:absolute;opacity:0;pointer-events:none}
+.pay span{display:block;text-align:center;padding:10px 4px;border-radius:10px;border:2px solid var(--line);background:var(--surface);font-weight:700;font-size:13px}
+.pay input:checked+span{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 14%,var(--surface))}
+.pay input:focus-visible+span{outline:3px solid var(--accent2)}
+.recibo-prev{background:#fff;color:#151513;border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:6px;font-size:14px}
+.recibo-prev .small.muted{color:#6b6a63}
+.rp-head{display:flex;gap:10px;align-items:center;padding-bottom:8px;border-bottom:2px solid var(--accent);margin-bottom:4px}
+.rp-head img{width:40px;height:40px;border-radius:8px;object-fit:cover}
+.rp-row{display:flex;justify-content:space-between;gap:10px}.rp-row span:first-child{min-width:0}
+.rp-tot{font-weight:800;font-size:17px;border-top:1px solid #e2e1da;padding-top:6px;margin-top:2px}
 [hidden]{display:none!important}
 </style>
 </head>
@@ -143,6 +154,7 @@ input[type=color]{height:44px;padding:4px;cursor:pointer}
 <div id="toast" class="toast" hidden></div>
 <input type="file" id="importFile" accept="application/json,.json" hidden>
 <input type="file" id="logoFile" accept="image/*" hidden>
+<script src="jspdf.umd.min.js"></script>
 
 <script>
 /* ===== Almacenamiento local ===== */
@@ -382,21 +394,22 @@ function vResumen(){
     <div class="li"><div class="main">Reserva ${+D.cfg.reservaPct||0}% <span class="t2">(imprevistos y reinversión)</span></div><div class="big num muted">−${money(t.reserva)}</div></div>
     <div class="li" style="background:color-mix(in srgb,var(--accent) 14%,var(--surface))"><div class="main" style="font-weight:800">Ganancia real</div><div class="big num" style="color:${t.real>=0?'var(--ok)':'var(--bad)'};font-size:28px">${money(t.real)}</div></div>
     <div class="li"><div class="main t2">Plata que salió en compras de insumos</div><div class="num muted">${money(t.compras)}</div></div></div>
+  ${(()=>{const pg={};movs.filter(m=>m.tipo==='venta').forEach(m=>{const k=m.pago||'Efectivo';pg[k]=(pg[k]||0)+(+m.total||0)});const e=Object.entries(pg).sort((a,b)=>b[1]-a[1]);return e.length?`<h2><span class="hl">Formas de pago</span></h2><div class="list">${e.map(([k,v])=>`<div class="li"><div class="main">${esc(k)}${k==='Fiado'?' <span class="chip low">Por cobrar</span>':''}</div><div class="big num">${money(v)}</div></div>`).join('')}</div>`:''})()}
   ${tabla}
   ${top.length?`<h2><span class="hl">Lo más vendido</span></h2><div class="list">${top.map(([n,q])=>`<div class="li"><div class="main"><div class="t1">${esc(n)}</div><div class="bar"><i style="width:${(q/mx*100).toFixed(0)}%"></i></div></div><div class="big num">${q}</div></div>`).join('')}</div>`:''}
   <h2><span class="hl">Historial</span></h2>
   ${movs.length>150?`<p class="small muted" style="margin-top:-4px">Se muestran los 150 movimientos más recientes de este periodo.</p>`:''}<div class="list">${movs.length?movs.slice(0,150).map(m=>{
     const desc=m.tipo==='venta'?(m.items||[]).map(i=>i.cant+'× '+i.nombre+(i.variante?' ('+i.variante+')':'')).join(', '):m.tipo==='gasto'?m.concepto:(m.tipo==='ajuste'&&m.cant>0?'+':'')+qty(m.cant)+' '+(m.unidad||'')+' '+(m.nombre||'');
     const val=m.tipo==='venta'?m.total:m.tipo==='gasto'?-m.valor:m.tipo==='compra'?-m.total:null;
-    return `<div class="li"><div class="main"><div class="t1">${lbl[m.tipo]}: ${esc(desc)}</div><div class="t2">${fmtFecha(m.fecha)}${m.nota?' · '+esc(m.nota):''}</div></div>
+    return `<div class="li"><div class="main"><div class="t1">${lbl[m.tipo]}${m.num?' N° '+m.num:''}: ${esc(desc)}</div><div class="t2">${fmtFecha(m.fecha)}${m.tipo==='venta'?' · '+esc(m.pago||'Efectivo'):''}${m.cliente?' · '+esc(m.cliente):''}${m.nota?' · '+esc(m.nota):''}</div></div>
       <div class="r">${val!=null?`<div class="num" style="font-size:18px;color:${val>=0?'var(--ok)':'var(--fg)'}">${money(val)}</div>`:''}
-      <button class="lnk ${S.confirmDel===m.id?'danger':''}" data-del="${m.id}">${S.confirmDel===m.id?'¿Borrar? Sí':'Borrar'}</button></div></div>`}).join(''):'<div class="empty">Sin movimientos en este periodo.</div>'}</div>`;
+      ${m.tipo==='venta'?`<button class="lnk" data-recibo="${m.id}" style="color:var(--accent);font-weight:700">Recibo</button>`:''}<button class="lnk ${S.confirmDel===m.id?'danger':''}" data-del="${m.id}">${S.confirmDel===m.id?'¿Borrar? Sí':'Borrar'}</button></div></div>`}).join(''):'<div class="empty">Sin movimientos en este periodo.</div>'}</div>`;
 }
 
 /* ===== Formularios ===== */
 function openSheet(html,onSubmit){
   const c=$('#sheetCard');c.innerHTML=html;$('#sheet').hidden=false;
-  const f=c.querySelector('form');if(f)f.addEventListener('submit',e=>{e.preventDefault();onSubmit(new FormData(f))});
+  const f=c.querySelector('form');if(f)f.addEventListener('submit',e=>{e.preventDefault();onSubmit(new FormData(f),e)});
   setTimeout(()=>c.querySelector('input,select')?.focus(),60);
 }
 function closeSheet(){$('#sheet').hidden=true;$('#sheetCard').innerHTML='';render()}
@@ -535,6 +548,8 @@ function sheetAjustes(){
     <h3 style="margin-top:8px">¿Qué vende tu negocio?</h3>
     <div style="display:flex;flex-direction:column;gap:8px">${Object.keys(MODS).map(k=>`<button type="button" class="opt ${mods()[k]?'sel':''}" data-mod="${k}"><span class="chk">${mods()[k]?'✓':''}</span><span><b>${MODS[k][0]}</b><span class="small muted">${MODS[k][1]}</span></span></button>`).join('')}</div>
     <p class="small muted" style="margin:0">Apagar una opción solo oculta los botones para crear ese tipo de producto. Tus productos y ventas no se borran.</p>
+    <h3 style="margin-top:8px">Recibos</h3>
+    <button type="button" class="btn ghost block" data-act="datosRecibo">Mis datos para los recibos</button>
     <h3 style="margin-top:8px">Logo</h3>
     <div class="logoedit">${D.cfg.logo?`<img class="prev" src="${D.cfg.logo}" alt="Logo actual">`:'<div class="prev">Sin logo</div>'}
       <div class="row" style="flex:1"><button type="button" class="btn ghost" data-act="subirLogo">${D.cfg.logo?'Cambiar logo':'Subir logo'}</button>${D.cfg.logo?'<button type="button" class="btn ghost" data-act="quitarLogo">Quitar</button>':''}</div></div>
@@ -578,13 +593,110 @@ $('#logoFile').addEventListener('change',e=>{const f=e.target.files[0];e.target.
   img.onerror=()=>{URL.revokeObjectURL(url);toast('Ese archivo no es una imagen válida.')};img.src=url});
 
 /* ===== Acciones ===== */
-function vender(btn){
-  const ks=Object.keys(S.cart).filter(k=>S.cart[k]>0&&lineaCart(k));if(!ks.length)return;
+const PAGOS=['Efectivo','Nequi','Daviplata','Transferencia','Tarjeta','Fiado'];
+const RC=()=>({titulo:'RECIBO DE VENTA',nota:'¡Gracias por tu compra!',consecutivo:0,...(D.cfg.recibo||{})});
+function vender(extra={}){
+  const ks=Object.keys(S.cart).filter(k=>S.cart[k]>0&&lineaCart(k));if(!ks.length)return null;
   const items=[],consumo={};let total=0,costo=0;
   for(const k of ks){const l=lineaCart(k),q=S.cart[k];items.push({productoId:l.p.id,nombre:l.p.nombre,variante:l.variante,cant:q,precio:l.p.precio,costoUnit:l.costo});total+=l.p.precio*q;costo+=l.costo*q;
     for(const r in l.consumo)consumo[r]=(consumo[r]||0)+(+l.consumo[r])*q}
-  D.movs.push({id:uid(),tipo:'venta',fecha:Date.now(),items,consumo,total,costo});
-  if(save()){S.cart={};toast('Venta registrada: '+money(total));render()}
+  const rc=RC(),num=(+rc.consecutivo||0)+1;D.cfg.recibo={...rc,consecutivo:num};
+  const v={id:uid(),tipo:'venta',fecha:Date.now(),num,items,consumo,total,costo,pago:extra.pago||'Efectivo',cliente:extra.cliente||'',clienteTel:extra.clienteTel||'',clienteDoc:extra.clienteDoc||''};
+  D.movs.push(v);
+  if(save()){S.cart={};render();return v}return null;
+}
+function sheetCobrar(){
+  const ks=Object.keys(S.cart).filter(k=>S.cart[k]>0&&lineaCart(k));if(!ks.length)return;
+  let tot=0;ks.forEach(k=>tot+=lineaCart(k).p.precio*S.cart[k]);
+  const clientes=[...new Set(D.movs.filter(m=>m.tipo==='venta'&&m.cliente).map(m=>m.cliente))];
+  openSheet(`<h3>Cobrar ${money(tot)}</h3>
+    <div class="small muted" style="margin-top:-6px">${ks.map(k=>S.cart[k]+' × '+esc(lineaCart(k).nombre)).join('<br>')}</div>
+    <form style="display:flex;flex-direction:column;gap:12px">
+    <div class="f" style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">¿Cómo te pagaron?</div>
+    <div class="paygrid">${PAGOS.map((m,i)=>`<label class="pay"><input type="radio" name="pago" value="${m}" ${i===0?'checked':''}><span>${m}</span></label>`).join('')}</div>
+    <label class="f">Cliente (opcional)<input id="vCli" name="cliente" list="cliList" placeholder="Nombre del cliente" autocomplete="off"></label>
+    <datalist id="cliList">${clientes.map(c=>`<option value="${esc(c)}">`).join('')}</datalist>
+    <div class="row"><label class="f">Teléfono (opcional)<input id="vTel" name="tel" type="tel" inputmode="tel"></label>
+    <label class="f">Cédula / NIT (opcional)<input id="vDoc" name="doc" inputmode="numeric"></label></div>
+    <div class="row"><button type="submit" class="btn ghost" name="accion" value="guardar">Solo guardar</button><button type="submit" class="btn primary" name="accion" value="recibo">Guardar y hacer recibo</button></div>
+    </form>`,
+  (fd,ev)=>{const accion=ev?.submitter?.value||'guardar';
+    const v=vender({pago:fd.get('pago'),cliente:String(fd.get('cliente')||'').trim(),clienteTel:String(fd.get('tel')||'').trim(),clienteDoc:String(fd.get('doc')||'').trim()});
+    if(!v)return;toast('Venta N° '+v.num+' registrada: '+money(v.total));
+    if(accion==='recibo')sheetRecibo(v.id);else closeSheet()});
+  $('#vCli').addEventListener('change',e=>{const n=e.target.value.trim().toLowerCase();const pv=[...D.movs].reverse().find(m=>m.tipo==='venta'&&m.cliente&&m.cliente.toLowerCase()===n);if(pv){if(!$('#vTel').value)$('#vTel').value=pv.clienteTel||'';if(!$('#vDoc').value)$('#vDoc').value=pv.clienteDoc||''}});
+}
+function sheetRecibo(id){
+  const v=D.movs.find(m=>m.id===id);if(!v){toast('No encontré esa venta.');return}
+  const rc=RC(),falta=!rc.titular&&!rc.telefono;
+  openSheet(`<h3>${esc(rc.titulo)} N° ${v.num||'—'}</h3>
+    <div class="recibo-prev">
+      <div class="rp-head">${D.cfg.logo?`<img src="${D.cfg.logo}" alt="">`:''}<div><b>${esc(D.cfg.nombre)}</b><div class="small muted">${fmtFecha(v.fecha)}</div></div></div>
+      ${(v.items||[]).map(i=>`<div class="rp-row"><span>${i.cant} × ${esc(i.nombre)}${i.variante?' ('+esc(i.variante)+')':''}</span><span class="num">${money(i.cant*i.precio)}</span></div>`).join('')}
+      <div class="rp-row rp-tot"><span>TOTAL</span><span class="num">${money(v.total)}</span></div>
+      <div class="small muted">Pago: ${esc(v.pago||'Efectivo')}${v.cliente?' · Cliente: '+esc(v.cliente):''}</div>
+    </div>
+    ${falta?`<button type="button" class="btn ghost block" data-act="datosRecibo" data-volver="${v.id}">Agregar mis datos al recibo (teléfono, NIT…)</button>`:''}
+    <button type="button" class="btn primary block" data-pdf="share" data-vid="${v.id}">Enviar PDF (WhatsApp, correo…)</button>
+    <button type="button" class="btn ghost block" data-pdf="dl" data-vid="${v.id}">Descargar PDF</button>
+    <button type="button" class="btn ghost block" data-act="close">Cerrar</button>`);
+}
+function sheetDatosRecibo(volver){
+  const rc=RC(),F=[['titular','Tu nombre completo','text'],['documento','Cédula o NIT','text'],['telefono','Teléfono / WhatsApp','tel'],['correo','Correo (opcional)','email'],['direccion','Dirección (opcional)','text'],['ciudad','Ciudad','text'],['pagos','Datos para pagos (opcional)','text','Ej: Nequi 300 000 0000'],['titulo','Título del documento','text'],['nota','Mensaje al final del recibo','text']];
+  openSheet(`<h3>Tus datos para los recibos</h3><p class="small muted" style="margin:0">Escríbelos una vez y salen en cada recibo. El nombre del negocio y el logo se toman de Ajustes.</p>
+    <form style="display:flex;flex-direction:column;gap:12px">
+    ${F.map(([k,l,t,ph])=>`<label class="f">${l}<input id="rc_${k}" name="${k}" type="${t}" value="${esc(rc[k]||'')}" ${ph?`placeholder="${esc(ph)}"`:''}></label>`).join('')}
+    <label class="f">Próximo N° de recibo<input id="rc_next" name="next" type="number" inputmode="numeric" min="1" step="1" value="${(+rc.consecutivo||0)+1}"></label>
+    ${btns('Guardar')}</form>`,
+  fd=>{const r={...rc};F.forEach(([k])=>r[k]=String(fd.get(k)||'').trim());r.titulo=r.titulo||'RECIBO DE VENTA';r.consecutivo=Math.max(0,(+fd.get('next')||1)-1);D.cfg.recibo=r;
+    if(save()){toast('Datos guardados. Ya salen en tus recibos.');if(volver)sheetRecibo(volver);else closeSheet()}});
+}
+function hexRGB(h){const n=parseInt(String(h).slice(1),16);return[n>>16&255,n>>8&255,n&255]}
+function makePdf(v){
+  const {jsPDF}=window.jspdf,rc=RC(),tema={...(TEMAS[D.cfg.tema]||TEMAS.neon),...(D.cfg.colores||{})};
+  const doc=new jsPDF({unit:'mm',format:'letter'}),W=215.9,M=16,Rr=W-M,BLACK=[21,21,19],AC=hexRGB(tema.accent),GRAY=[107,106,99],LINE=[226,225,218];
+  const pesos=n=>{const x=Math.round(n||0);return (x<0?'-':'')+'$ '+new Intl.NumberFormat('es-CO').format(Math.abs(x))};
+  let y=16;
+  if(D.cfg.logo){try{doc.addImage(D.cfg.logo,D.cfg.logo.startsWith('data:image/png')?'PNG':'JPEG',M,y-3,16,16)}catch(e){}}
+  const xN=D.cfg.logo?M+20:M;doc.setFont('helvetica','bold');doc.setFontSize(14);doc.setTextColor(...BLACK);doc.text(D.cfg.nombre||'',xN,y+4);
+  doc.setFontSize(15);doc.text(rc.titulo||'RECIBO DE VENTA',Rr,y+3,{align:'right'});
+  doc.setFontSize(11);doc.text('N° '+String(v.num||'').padStart(4,'0'),Rr,y+9,{align:'right'});
+  doc.setFont('helvetica','normal');doc.setFontSize(9.5);doc.setTextColor(...GRAY);doc.text('Fecha: '+new Date(v.fecha).toLocaleDateString('es-CO',{day:'numeric',month:'long',year:'numeric'}),Rr,y+14,{align:'right'});
+  y+=20;doc.setFillColor(...AC);doc.rect(M,y,Rr-M,1.6,'F');y+=8;
+  const colW=(Rr-M-8)/2,xC=M+colW+8;
+  const block=(x,title,ls)=>{doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(...GRAY);doc.text(title,x,y);let yy=y+5;
+    ls.filter(l=>l&&l[1]).forEach(([b,t])=>{doc.setFont('helvetica',b?'bold':'normal');doc.setFontSize(b?11:9.5);doc.setTextColor(...BLACK);const w=doc.splitTextToSize(String(t),colW);doc.text(w,x,yy);yy+=w.length*(b?5:4.4)});return yy};
+  const y1=block(M,'VENDEDOR',[[1,D.cfg.nombre],[0,rc.titular],[0,rc.documento&&('C.C./NIT: '+rc.documento)],[0,rc.telefono&&('Tel: '+rc.telefono)],[0,rc.correo],[0,[rc.direccion,rc.ciudad].filter(Boolean).join(', ')]]);
+  const y2=block(xC,'CLIENTE',[[1,v.cliente||'Consumidor final'],[0,v.clienteDoc&&('C.C./NIT: '+v.clienteDoc)],[0,v.clienteTel&&('Tel: '+v.clienteTel)]]);
+  y=Math.max(y1,y2)+5;
+  const cols=[{t:'Producto',x:M+3,w:100,a:'left'},{t:'Cant.',x:M+120,a:'right'},{t:'Precio unit.',x:M+152,a:'right'},{t:'Total',x:Rr-3,a:'right'}];
+  doc.setFillColor(...BLACK);doc.rect(M,y,Rr-M,8,'F');doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(255,255,255);
+  cols.forEach(c=>doc.text(c.t,c.x,y+5.4,{align:c.a}));y+=8;
+  doc.setFont('helvetica','normal');doc.setFontSize(9.5);doc.setTextColor(...BLACK);
+  (v.items||[]).forEach(it=>{const name=doc.splitTextToSize(((it.nombre||'')+(it.variante?' ('+it.variante+')':'')).replace(/·/g,'-'),cols[0].w),h=Math.max(8,name.length*4.4+3.6);if(y+h>245){doc.addPage();y=20}
+    doc.text(name,cols[0].x,y+5.2);doc.text(String(it.cant),cols[1].x,y+5.2,{align:'right'});doc.text(pesos(it.precio),cols[2].x,y+5.2,{align:'right'});doc.text(pesos(it.cant*it.precio),cols[3].x,y+5.2,{align:'right'});
+    y+=h;doc.setDrawColor(...LINE);doc.setLineWidth(.3);doc.line(M,y,Rr,y)});
+  y+=8;const tl=Rr-70;
+  doc.setFillColor(...AC);doc.rect(tl-4,y-4,Rr-tl+4,10,'F');doc.setFont('helvetica','bold');doc.setFontSize(12);doc.setTextColor(...hexRGB(textoSobre(tema.accent)));
+  doc.text('TOTAL',tl,y+2.8);doc.text(pesos(v.total),Rr-3,y+2.8,{align:'right'});
+  doc.setFont('helvetica','normal');doc.setFontSize(9.5);doc.setTextColor(...GRAY);doc.text('Forma de pago:',M,y+2.8);doc.setTextColor(...BLACK);doc.text(v.pago||'Efectivo',M+28,y+2.8);
+  y+=18;
+  if(rc.pagos){doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(...GRAY);doc.text('DATOS PARA PAGOS',M,y);y+=4.6;doc.setFont('helvetica','normal');doc.setFontSize(9.5);doc.setTextColor(...BLACK);const w=doc.splitTextToSize(rc.pagos,Rr-M);doc.text(w,M,y);y+=w.length*4.4+5}
+  if(rc.nota){doc.setFont('helvetica','italic');doc.setFontSize(9.5);doc.setTextColor(...BLACK);doc.text(doc.splitTextToSize(rc.nota,Rr-M),M,y)}
+  const fy=266;doc.setDrawColor(...AC);doc.setLineWidth(.8);doc.line(M,fy-5,Rr,fy-5);
+  doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor(...GRAY);
+  doc.text([`${D.cfg.nombre||''}${rc.telefono?' | '+rc.telefono:''}${rc.correo?' | '+rc.correo:''}`,'Documento soporte de venta. No reemplaza la factura electrónica de la DIAN.'],W/2,fy,{align:'center'});
+  return doc.output('blob');
+}
+async function entregarPdf(id,share){
+  const v=D.movs.find(m=>m.id===id);if(!v)return;
+  if(!window.jspdf){toast('No se pudo cargar el generador de PDF. Recarga la app.');return}
+  const name=`Recibo_${String(v.num||'').padStart(4,'0')}_${(v.cliente||D.cfg.nombre||'cliente').replace(/[^\wáéíóúñÁÉÍÓÚÑ]+/g,'_')}.pdf`;
+  let blob;try{blob=makePdf(v)}catch(e){console.error(e);toast('No se pudo crear el PDF.');return}
+  const file=new File([blob],name,{type:'application/pdf'});
+  try{if(share&&navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:name});return}}catch(e){if(e&&e.name==='AbortError')return}
+  const url=URL.createObjectURL(file),a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),5000);
+  toast(share?'Se descargó el PDF. Envíalo desde Descargas.':'Recibo descargado.');
 }
 function confirmar(t,fn){if(!t.dataset.armed){t.dataset.armed='1';t.textContent='¿Seguro? Toca otra vez';t.classList.add('danger');return}fn()}
 document.addEventListener('click',e=>{
@@ -593,6 +705,8 @@ document.addEventListener('click',e=>{
   if(d.wmod||d.wej){if(d.wmod)S.wMods[d.wmod]=!S.wMods[d.wmod];else S.wEj=!S.wEj;const n=$('#wNombre')?.value;render();if(n)$('#wNombre').value=n;return}
   if(d.mod){const m={...mods()};m[d.mod]=!m[d.mod];if(!Object.values(m).some(Boolean)){toast('Deja al menos una opción activa.');return}D.cfg.modulos=m;save();sheetAjustes();return}
   if(d.pick){sheetElegir(d.pick);return}
+  if(d.pdf){entregarPdf(d.vid,d.pdf==='share');return}
+  if(d.recibo){sheetRecibo(d.recibo);return}
   if(d.addv){S.cart[d.addv]=(S.cart[d.addv]||0)+1;sheetElegir(d.addv.split('|')[0]);return}
   if(d.tab){S.tab=d.tab;S.confirmDel=null;render();window.scrollTo(0,0);return}
   if(d.add){S.cart[d.add]=(S.cart[d.add]||0)+1;render();return}
@@ -612,7 +726,8 @@ document.addEventListener('click',e=>{
       iniciar(n,S.wMods,S.wEj);S.tab=S.wEj?'vender':'productos';render();toast('¡Listo! Crea tu primer producto');break}
     case 'close':closeSheet();break;
     case 'clearCart':S.cart={};render();break;
-    case 'sell':vender(t);break;
+    case 'sell':sheetCobrar();break;
+    case 'datosRecibo':sheetDatosRecibo(d.volver);break;
     case 'compra':sheetCompra();break;
     case 'nuevoIns':sheetInsumo();break;
     case 'nuevoProd':sheetProducto();break;

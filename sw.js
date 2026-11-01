@@ -1,6 +1,6 @@
 // Permite abrir la app sin internet. Cambia el número de versión cada vez que subas cambios.
-const CACHE = 'mi-negocio-v7';
-const FILES = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
+const CACHE = 'mi-negocio-v8';
+const FILES = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './jspdf.umd.min.js'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));
