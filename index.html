@@ -100,7 +100,7 @@ input:focus,select:focus{outline:2px solid var(--accent);border-color:transparen
 .sheet-card h3{font-weight:800;font-size:20px;margin:0}
 .rec{display:grid;grid-template-columns:1fr 90px 34px;gap:8px;align-items:center;font-size:14px}
 .rec input{padding:8px;text-align:center}
-.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(150px + env(safe-area-inset-bottom,0px));z-index:30;background:var(--accent2);color:var(--on-accent2);font-weight:800;padding:10px 16px;border-radius:999px;max-width:calc(100% - 32px)}
+.toast{pointer-events:none;position:fixed;left:50%;transform:translateX(-50%);bottom:calc(150px + env(safe-area-inset-bottom,0px));z-index:30;background:var(--accent2);color:var(--on-accent2);font-weight:800;padding:10px 16px;border-radius:999px;max-width:calc(100% - 32px)}
 .welcome{display:flex;flex-direction:column;gap:14px;padding-top:20px}
 .welcome h1{font-size:30px;line-height:1.1;margin:0}
 .opt{display:flex;gap:12px;align-items:flex-start;background:var(--surface);border:2px solid transparent;border-radius:14px;padding:14px;cursor:pointer;color:var(--fg);font:inherit;text-align:left}
@@ -140,6 +140,7 @@ input[type=color]{height:44px;padding:4px;cursor:pointer}
 .chkline{display:flex;gap:10px;align-items:center;font-size:14px;cursor:pointer}.chkline input{width:20px;height:20px;accent-color:var(--accent)}
 .dropzone{border:2px dashed var(--line);border-radius:14px;padding:10px;transition:border-color .15s,background .15s}
 .dropzone.over{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 10%,transparent)}
+.pasos{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;font-size:14px}
 [hidden]{display:none!important}
 </style>
 </head>
@@ -161,6 +162,7 @@ input[type=color]{height:44px;padding:4px;cursor:pointer}
 <div id="toast" class="toast" hidden></div>
 <input type="file" id="importFile" accept="application/json,.json" hidden>
 <input type="file" id="logoFile" accept="image/*" hidden>
+<input type="file" id="excelFile" accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv" hidden>
 <script src="jspdf.umd.min.js"></script>
 
 <script>
@@ -399,6 +401,116 @@ function sheetCliente(key){
     if(save()){const quedo=x.debe-total;toast(quedo<1?x.nombre+' quedó a paz y salvo':'Abono de '+money(total)+'. Debe '+money(quedo));closeSheet()}});
 }
 
+/* ===== Importar desde Excel ===== */
+function cargarXLSX(){return new Promise((ok,no)=>{if(window.XLSX)return ok(window.XLSX);const sc=document.createElement('script');sc.src='xlsx.full.min.js';sc.onload=()=>ok(window.XLSX);sc.onerror=()=>no(new Error('xlsx'));document.head.appendChild(sc)})}
+const normH=v=>String(v||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').trim();
+function numX(v){if(typeof v==='number')return v;let t=String(v??'').replace(/[$\s]/g,'');if(!t)return 0;
+  if(/^\d{1,3}(\.\d{3})+(,\d+)?$/.test(t))t=t.replace(/\./g,'').replace(',','.');else if(/^\d{1,3}(,\d{3})+(\.\d+)?$/.test(t))t=t.replace(/,/g,'');else t=t.replace(',','.');
+  const n=parseFloat(t);return isFinite(n)?n:0}
+function colMap(hdr,defs){const m={};hdr.forEach((h,i)=>{const n=normH(h);for(const [k,keys] of Object.entries(defs))if(m[k]===undefined&&keys.some(x=>n.includes(x))){m[k]=i;break}});return m}
+const DEF_PROD={nombre:['producto','nombre','referencia','articulo'],categoria:['categ'],costo:['costo','compra'],precio:['precio','venta','valor'],cantidad:['cant','unidades','stock','existencia'],talla:['talla'],color:['color','tono','sabor','variante']};
+const DEF_INS={nombre:['insumo','ingrediente','materia','nombre'],unidad:['unidad','medida'],costo:['costo'],cantidad:['cant','stock','existencia','tengo']};
+function filasHoja(XLSX,ws){const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:'',raw:true});let h=rows.findIndex(r=>r.some(c=>String(c).trim()));if(h<0)return{hdr:[],rows:[]};return{hdr:rows[h],rows:rows.slice(h+1)}}
+function analizarExcel(XLSX,wb){
+  const res={prods:[],ins:[],avisos:[]};
+  const hojaP=wb.SheetNames.find(n=>/produc/i.test(n))||wb.SheetNames.find(n=>!/instruc|insum/i.test(n)),hojaI=wb.SheetNames.find(n=>/insum|ingred/i.test(n));
+  if(hojaP){const {hdr,rows}=filasHoja(XLSX,wb.Sheets[hojaP]),m=colMap(hdr,DEF_PROD);
+    if(m.nombre===undefined){res.avisos.push('No encontré la columna "Producto" en la hoja '+hojaP+'.')}
+    else{const g={};rows.forEach((r,ix)=>{const nombre=String(r[m.nombre]??'').trim();if(!nombre)return;
+      const precio=m.precio!==undefined?Math.round(numX(r[m.precio])):0;if(!precio){res.avisos.push(`Fila ${ix+2}: "${nombre}" no tiene precio, la salté.`);return}
+      const k=normH(nombre);if(!g[k])g[k]={nombre,categoria:'',precio,filas:[]};const P=g[k];
+      if(m.categoria!==undefined&&String(r[m.categoria]).trim())P.categoria=String(r[m.categoria]).trim();
+      P.filas.push({talla:m.talla!==undefined?String(r[m.talla]??'').trim():'',color:m.color!==undefined?String(r[m.color]??'').trim():'',costo:m.costo!==undefined?Math.round(numX(r[m.costo])):0,cant:m.cantidad!==undefined?Math.max(0,Math.round(numX(r[m.cantidad]))):0})});
+      res.prods=Object.values(g)}}
+  if(hojaI){const {hdr,rows}=filasHoja(XLSX,wb.Sheets[hojaI]),m=colMap(hdr,DEF_INS);
+    if(m.nombre!==undefined)rows.forEach(r=>{const nombre=String(r[m.nombre]??'').trim();if(!nombre)return;let u=normH(m.unidad!==undefined?r[m.unidad]:'und');
+      u=/^(g|gr|gramo)/.test(u)?'g':/^(ml|mili)/.test(u)?'ml':/^(kg|kilo)/.test(u)?'kg':/^(l|lt|litro)/.test(u)?'l':'und';
+      let costo=m.costo!==undefined?numX(r[m.costo]):0,cant=m.cantidad!==undefined?numX(r[m.cantidad]):0;
+      if(u==='kg'){u='g';cant*=1000;costo/=1000}if(u==='l'){u='ml';cant*=1000;costo/=1000}
+      res.ins.push({nombre,unidad:u,costo,cant})})}
+  return res;
+}
+function aplicarImport(res){
+  const ahora=Date.now(),nota='Inventario inicial (Excel)';let nuevos=0,actual=0,und=0;
+  const ajuste=(iid,cant)=>{if(cant>0){const i=D.ins[iid];D.movs.push({id:uid(),tipo:'ajuste',fecha:ahora,insumoId:iid,nombre:i.nombre,unidad:U(i),cant,nota});und+=cant}};
+  for(const P of res.prods){
+    const vari=P.filas.filter(f=>f.talla||f.color),tallas=[...new Set(vari.map(f=>f.talla).filter(Boolean))].join(', '),colores=[...new Set(vari.map(f=>f.color).filter(Boolean))].join(', ');
+    const vn=f=>f.talla&&f.color?f.talla+' · '+f.color:(f.talla||f.color);
+    let p=Object.values(D.prod).find(x=>esRev(x)&&normH(x.nombre)===normH(P.nombre));
+    if(!p){const costo0=(P.filas.find(f=>f.costo)||{}).costo||0;
+      if(vari.length){const pid=crearReventa({nombre:P.nombre,categoria:P.categoria||(tallas?'Ropa':'Productos'),precio:P.precio,costo:costo0,tallas:vari.some(f=>f.talla&&f.color)||tallas?tallas:'',colores:vari.some(f=>f.talla&&f.color)||!tallas?colores:''});p=D.prod[pid];
+        // dejar solo las combinaciones que vienen en el Excel
+        const keep=new Set(vari.map(vn));p.variantes=p.variantes.filter(v=>{if(keep.has(v.nombre))return true;delete D.ins[v.ins];return false});
+        for(const v of vari.map(vn).filter(x=>!p.variantes.find(y=>y.nombre===x))){const iid=uid()+'v';D.ins[iid]={id:iid,nombre:P.nombre+' · '+v,variante:v,unidad:'und',costo:costo0,minimo:1,orden:60,grupo:p.id};p.variantes.push({nombre:v,ins:iid})}}
+      else{const pid=crearReventa({nombre:P.nombre,categoria:P.categoria||'Productos',precio:P.precio,costo:costo0});p=D.prod[pid]}
+      nuevos++}
+    else{p.precio=P.precio||p.precio;if(P.categoria)p.categoria=P.categoria;actual++}
+    for(const f of P.filas){let iid;
+      if(p.variantes){const nm=vn(f);let v=p.variantes.find(x=>x.nombre===nm);
+        if(!v&&nm){const nid=uid()+'v';D.ins[nid]={id:nid,nombre:p.nombre+' · '+nm,variante:nm,unidad:'und',costo:f.costo,minimo:1,orden:60,grupo:p.id};v={nombre:nm,ins:nid};p.variantes.push(v)}
+        iid=v?.ins}
+      else iid=Object.keys(p.receta||{})[0];
+      if(!iid||!D.ins[iid])continue;if(f.costo)D.ins[iid].costo=f.costo;ajuste(iid,f.cant)}
+  }
+  let insN=0;for(const I of res.ins){let i=Object.values(D.ins).find(x=>!x.grupo&&!x.variante&&normH(x.nombre)===normH(I.nombre));
+    if(!i){const id=uid();i=D.ins[id]={id,nombre:I.nombre,unidad:I.unidad,costo:I.costo,minimo:I.unidad==='und'?3:200,orden:50};insN++}else if(I.costo)i.costo=I.costo;
+    if(I.cant>0){D.movs.push({id:uid(),tipo:'ajuste',fecha:ahora,insumoId:i.id,nombre:i.nombre,unidad:U(i),cant:I.cant,nota})}}
+  if(insN||res.ins.length){const m={...mods()};m.recetas=true;D.cfg.modulos=m}
+  if(res.prods.some(P=>P.filas.some(f=>f.talla))){const m={...mods()};m.ropa=true;D.cfg.modulos=m}
+  if(res.prods.length){const m={...mods()};m.reventa=m.reventa||res.prods.some(P=>!P.filas.some(f=>f.talla));D.cfg.modulos=m}
+  return{nuevos,actual,und,insN};
+}
+let IMPORT=null;
+function sheetImportar(){
+  openSheet(`<h3>Importar inventario desde Excel</h3>
+    <p class="small muted" style="margin:0">Ideal cuando tienes muchos productos. Funciona con Excel, Google Sheets (descargado como .xlsx o .csv) y Numbers.</p>
+    <ol class="pasos"><li><b>Descarga la plantilla.</b> Trae las columnas listas y una hoja con instrucciones y ejemplos.</li>
+      <li><b>Llénala:</b> una fila por producto. Si tiene tallas, colores o sabores, una fila por cada combinación con el mismo nombre de producto.</li>
+      <li><b>Súbela aquí.</b> Antes de guardar te muestro qué voy a cargar.</li></ol>
+    <button type="button" class="btn ghost block" data-act="plantilla">Descargar plantilla de Excel</button>
+    <button type="button" class="btn yellow block" data-act="subirExcel">Subir mi archivo</button>
+    <p class="small muted" style="margin:0">Si un producto ya existe con el mismo nombre, se suman las unidades y se actualiza el precio. No se borra nada.</p>
+    <button type="button" class="btn ghost block" data-act="close">Cancelar</button>`);
+}
+async function descargarPlantilla(){
+  let XLSX;try{XLSX=await cargarXLSX()}catch(e){toast('No se pudo preparar la plantilla. Revisa tu conexión y vuelve a intentar.');return}
+  const wb=XLSX.utils.book_new();
+  const ins=[['CÓMO LLENAR ESTA PLANTILLA'],[''],['Hoja "Productos": lo que vendes tal como lo compras (accesorios, maquillaje, suplementos, ropa, licores…).'],
+    ['• Una fila por producto. Producto y Precio son obligatorios.'],['• Costo = lo que te cuesta cada unidad. Precio = a cuánto lo vendes. Cantidad = unidades que tienes hoy.'],
+    ['• Si el producto tiene tallas, colores, tonos o sabores, escribe una fila por cada combinación con el MISMO nombre de producto.'],
+    ['• Escribe los valores sin puntos o con puntos, como prefieras: 15000 o 15.000.'],[''],
+    ['Hoja "Insumos" (solo si preparas productos: postres, comidas, cócteles): los ingredientes con su unidad (und, g, ml, kg o l).'],
+    ['• Las recetas se arman después dentro de la app, en Productos → + Con receta.'],[''],['EJEMPLOS (no los copies si no son tuyos):'],
+    ['Producto','Categoría','Costo','Precio','Cantidad','Talla','Color / Tono / Sabor'],
+    ['Hebillas','Accesorios',1500,5000,30,'',''],['Labial mate','Maquillaje',7000,15000,5,'','Rojo'],['Labial mate','Maquillaje',7000,15000,3,'','Nude'],
+    ['Proteína Whey 2 lb','Suplementos',110000,165000,4,'','Vainilla'],['Proteína Whey 2 lb','Suplementos',110000,165000,2,'','Chocolate'],
+    ['Camiseta deportiva','Ropa',20000,45000,3,'S','Negro'],['Camiseta deportiva','Ropa',20000,45000,5,'M','Negro'],['Camiseta deportiva','Ropa',20000,45000,2,'M','Blanco'],[''],
+    ['Insumo','Unidad','Costo por unidad','Cantidad que tienes'],['Harina de trigo','kg',5200,3],['Huevos','und',600,30],['Leche','l',4200,2]];
+  const wsI=XLSX.utils.aoa_to_sheet(ins);wsI['!cols']=[{wch:26},{wch:14},{wch:16},{wch:12},{wch:10},{wch:8},{wch:22}];
+  const wsP=XLSX.utils.aoa_to_sheet([['Producto','Categoría','Costo','Precio','Cantidad','Talla','Color / Tono / Sabor']]);wsP['!cols']=[{wch:30},{wch:16},{wch:12},{wch:12},{wch:10},{wch:8},{wch:22}];
+  const wsN=XLSX.utils.aoa_to_sheet([['Insumo','Unidad','Costo por unidad','Cantidad que tienes']]);wsN['!cols']=[{wch:28},{wch:10},{wch:18},{wch:20}];
+  XLSX.utils.book_append_sheet(wb,wsP,'Productos');XLSX.utils.book_append_sheet(wb,wsN,'Insumos');XLSX.utils.book_append_sheet(wb,wsI,'Instrucciones');
+  const out=XLSX.write(wb,{bookType:'xlsx',type:'array'}),name='Plantilla-inventario-'+(D.cfg.nombre||'negocio').replace(/[^\wáéíóúñÁÉÍÓÚÑ]+/g,'-')+'.xlsx';
+  const file=new File([out],name,{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  try{if(navigator.canShare&&navigator.canShare({files:[file]})&&/android|iphone|ipad/i.test(navigator.userAgent)){await navigator.share({files:[file],title:name});return}}catch(e){if(e&&e.name==='AbortError')return}
+  const url=URL.createObjectURL(file),a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),5000);toast('Plantilla descargada');
+}
+$('#excelFile').addEventListener('change',async e=>{const f=e.target.files[0];e.target.value='';if(!f)return;
+  let XLSX;try{XLSX=await cargarXLSX()}catch(err){toast('No se pudo leer el archivo. Revisa tu conexión y vuelve a intentar.');return}
+  try{const buf=await f.arrayBuffer(),wb=XLSX.read(buf,{type:'array'});IMPORT=analizarExcel(XLSX,wb);vistaPrevia()}catch(err){console.error(err);toast('No pude leer ese archivo. Usa la plantilla en formato .xlsx o .csv.')}});
+function vistaPrevia(){
+  const r=IMPORT,und=r.prods.reduce((a,P)=>a+P.filas.reduce((b,f)=>b+f.cant,0),0),valor=r.prods.reduce((a,P)=>a+P.filas.reduce((b,f)=>b+f.cant*f.costo,0),0);
+  const existe=P=>Object.values(D.prod).some(x=>esRev(x)&&normH(x.nombre)===normH(P.nombre));
+  if(!r.prods.length&&!r.ins.length){openSheet(`<h3>No encontré productos</h3><p class="small muted">Revisa que la hoja tenga las columnas <b>Producto</b> y <b>Precio</b>, y al menos una fila llena.</p>${r.avisos.length?`<div class="aviso">${r.avisos.slice(0,8).map(esc).join('<br>')}</div>`:''}<button type="button" class="btn ghost block" data-act="importar2">Volver</button>`);return}
+  openSheet(`<h3>Revisa antes de guardar</h3>
+    <div class="kpis" style="grid-template-columns:repeat(3,minmax(0,1fr))"><div class="kpi"><div class="l">Productos</div><div class="v">${r.prods.length}</div></div><div class="kpi b"><div class="l">Unidades</div><div class="v">${und}</div></div><div class="kpi a"><div class="l">Valor</div><div class="v">${money(valor)}</div></div></div>
+    ${r.avisos.length?`<div class="aviso">${r.avisos.slice(0,6).map(esc).join('<br>')}${r.avisos.length>6?'<br>…y '+(r.avisos.length-6)+' más':''}</div>`:''}
+    <div class="list">${r.prods.slice(0,40).map(P=>{const vs=P.filas.filter(f=>f.talla||f.color);return `<div class="li"><div class="main"><div class="t1">${esc(P.nombre)} ${existe(P)?'<span class="chip low">Ya existe: suma unidades</span>':'<span class="chip ok">Nuevo</span>'}</div><div class="t2">${esc(P.categoria||'Sin categoría')} · ${vs.length?vs.length+' opciones: '+vs.slice(0,4).map(f=>esc(f.talla&&f.color?f.talla+' '+f.color:(f.talla||f.color))).join(', ')+(vs.length>4?'…':''):'sin variantes'}</div></div><div class="r"><div class="big num">${money(P.precio)}</div><div class="t2">${P.filas.reduce((a,f)=>a+f.cant,0)} und</div></div></div>`}).join('')}${r.prods.length>40?`<div class="empty">…y ${r.prods.length-40} productos más</div>`:''}</div>
+    ${r.ins.length?`<div class="small muted">También ${r.ins.length} insumos: ${r.ins.slice(0,6).map(i=>esc(i.nombre)).join(', ')}${r.ins.length>6?'…':''}</div>`:''}
+    <button type="button" class="btn primary block" data-act="confirmarImport">Cargar todo al inventario</button>
+    <button type="button" class="btn ghost block" data-act="close">Cancelar</button>`);
+}
+
 /* ===== Vistas ===== */
 function render(){
   aplicarTema();
@@ -473,6 +585,7 @@ function vProductos(){
   const prods=sorted(D.prod),eq=equilibrio(),fu=eq.fijoUnidad;
   const M=mods();
   return `<div class="row">${M.recetas?'<button class="btn yellow" data-act="nuevoProd">+ Con receta</button>':''}${M.reventa?`<button class="btn ${M.recetas?'ghost':'yellow'}" data-act="nuevoReventa">+ Para revender</button>`:''}${M.ropa?`<button class="btn ${M.recetas||M.reventa?'ghost':'yellow'}" data-act="nuevaPrenda">+ Prenda</button>`:''}</div>
+  <button class="btn ghost block" data-act="importar2" style="margin-top:8px">Importar muchos productos desde Excel</button>
   <h2><span class="hl">Costo real por unidad</span></h2>
   <p class="small muted" style="margin-top:-4px">Cada unidad carga ${money(fu)} de gastos fijos (${money(fijosMes())} al mes ÷ ${eq.base||0} unidades${+D.cfg.ventasMes?' esperadas':' vendidas este mes'}).</p>
   <div class="list">${prods.length?prods.map(p=>{const c=costoProd(p),real=c+fu,g=p.precio-real,m=p.precio?g/p.precio:0,falta=faltaCosto(p);
@@ -539,7 +652,7 @@ function vResumen(){
 function openSheet(html,onSubmit){
   const c=$('#sheetCard');c.innerHTML=html;$('#sheet').hidden=false;
   const f=c.querySelector('form');if(f)f.addEventListener('submit',e=>{e.preventDefault();const fd=new FormData(f);f.querySelectorAll('input.money').forEach(i=>{if(i.name)fd.set(i.name,String(i.value).replace(/\D/g,''))});onSubmit(fd,e)});
-  setTimeout(()=>c.querySelector('input,select')?.focus(),60);
+  setTimeout(()=>{if(!c.contains(document.activeElement))c.querySelector('input,select')?.focus()},60);
 }
 function closeSheet(){$('#sheet').hidden=true;$('#sheetCard').innerHTML='';render()}
 const btns=(ok,extra)=>`<div class="row">${extra||'<button type="button" class="btn ghost" data-act="close">Cancelar</button>'}<button type="submit" class="btn yellow">${ok}</button></div>`;
@@ -875,6 +988,10 @@ document.addEventListener('click',e=>{
     case 'close':closeSheet();break;
     case 'clearCart':S.cart={};render();break;
     case 'sell':sheetCobrar();break;
+    case 'importar2':sheetImportar();break;
+    case 'plantilla':descargarPlantilla();break;
+    case 'subirExcel':$('#excelFile').click();break;
+    case 'confirmarImport':{if(!IMPORT)return;const r=aplicarImport(IMPORT);IMPORT=null;if(save()){toast(`Listo: ${r.nuevos} nuevos, ${r.actual} actualizados, ${r.und} unidades`);S.tab='inventario';closeSheet()}break}
     case 'abrirCaja':{const v=$('#cjBase').value.replace(/\D/g,'');if(v===''){toast('Escribe con cuánto efectivo arrancas (puede ser 0).');$('#cjBase').focus();return}
       D.cajas=D.cajas||[];D.cajas.push({id:uid(),abierta:Date.now(),cerrada:null,base:+v||0,movs:[]});if(save()){toast('Caja abierta con '+money(+v||0));S.tab='vender';render()}break}
     case 'cajaIngreso':sheetCajaMov('ingreso');break;
