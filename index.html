@@ -524,7 +524,7 @@ function lineaFactura(n,nombre=''){return `<div class="fline" data-n="${n}">
   <label class="f" style="flex:1 1 90px" id="fuL_${n}">Se mide en<select id="fu_${n}" name="fu_${n}"><option value="und">Unidades</option><option value="g">Gramos</option><option value="ml">Mililitros</option></select></label></div>
   <div class="row"><label class="f">Cantidad<input id="fq_${n}" name="fq_${n}" type="number" inputmode="decimal" min="0" step="any" placeholder="0"></label>
   <label class="f">Valor de cada uno<input id="fp_${n}" name="fp_${n}" type="text" inputmode="numeric" class="money" autocomplete="off" placeholder="0"></label>
-  <label class="f" id="fcL_${n}" hidden>Cada uno trae<input id="fc_${n}" name="fc_${n}" type="number" inputmode="decimal" min="0" step="any" placeholder="Ej: 1000"></label></div>
+  <label class="f" id="fcL_${n}">Cada uno trae<input id="fc_${n}" name="fc_${n}" type="number" inputmode="decimal" min="0" step="any" placeholder="1"></label></div>
   <div class="fline-foot"><span class="small muted" id="fi_${n}"></span><span class="num" id="fs_${n}"></span><button type="button" class="lnk" data-quitarlinea="${n}">Quitar</button></div></div>`}
 let FL=0;
 function sheetCompra(){
@@ -547,21 +547,22 @@ function sheetCompra(){
     const fid=uid(),ahora=Date.now(),prov=String(fd.get('proveedor')||'').trim(),numfac=String(fd.get('numfac')||'').trim(),caja=!!fd.get('caja');let total=0;
     for(const l of lines){let it=insPorNombre(l.nombre);
       if(!it){const iid=uid()+'f';it=D.ins[iid]={id:iid,nombre:l.nombre,unidad:l.unidad,costo:0,minimo:l.unidad==='und'?3:200,orden:50}}
-      const u=U(it),cont=u==='und'?1:(l.cont||it.ultimoCont||1),cant=l.q*cont,cu=cont?l.precio/cont:0,tot=l.q*l.precio;total+=tot;
-      if(l.precio>0)it.costo=cu;if(u!=='und')it.ultimoCont=cont;
+      const u=U(it),cont=l.cont||(u==='und'?1:(it.ultimoCont||1)),cant=l.q*cont,cu=cont?l.precio/cont:0,tot=l.q*l.precio;total+=tot;
+      if(l.precio>0)it.costo=cu;it.ultimoCont=cont;
       D.movs.push({id:uid(),tipo:'compra',fecha:ahora,fid,proveedor:prov,numfac,insumoId:it.id,nombre:it.nombre,unidad:u,cant,costoUnit:cu,total:tot,caja})}
     done(`Compra guardada: ${lines.length} ${lines.length===1?'producto':'productos'} por ${money(total)}`)});
   actualizarFactura();
 }
 function actualizarFactura(){let tot=0;
   document.querySelectorAll('#flines .fline').forEach(r=>{const n=r.dataset.n,nm=$('#fn_'+n).value.trim(),it=nm?insPorNombre(nm):null,u=it?U(it):$('#fu_'+n).value;
-    $('#fuL_'+n).hidden=!!it;$('#fcL_'+n).hidden=u==='und';
-    if(u!=='und'){$('#fcL_'+n).firstChild.textContent='Cada uno trae ('+u+')';if(it&&it.ultimoCont&&!$('#fc_'+n).value)$('#fc_'+n).value=it.ultimoCont}
+    $('#fuL_'+n).hidden=!!it;$('#fcL_'+n).hidden=false;
+    $('#fcL_'+n).firstChild.textContent=u==='und'?'Cada paquete trae (und)':'Cada uno trae ('+u+')';if(it&&it.ultimoCont>1&&!$('#fc_'+n).value&&!$('#fc_'+n).dataset.tocado)$('#fc_'+n).value=it.ultimoCont
     const q=+$('#fq_'+n).value||0,pr=numIn($('#fp_'+n).value),sub=q*pr;tot+=sub;
     $('#fs_'+n).textContent=sub?money(sub):'';
-    $('#fi_'+n).textContent=!nm?'':it?(u==='und'?`Tienes ${qty(stock()[it.id]||0)} · último costo ${money(it.costo)}`:`Tienes ${qty(stock()[it.id]||0)} ${u}`):'Nuevo: se crea al guardar'});
+    const cont=+$('#fc_'+n).value||1,cu=pr&&cont?pr/cont:0;
+    $('#fi_'+n).textContent=(!nm?'':it?`Tienes ${qty(stock()[it.id]||0)} ${u}`:'Nuevo')+(q&&cu?`${nm?' · ':''}Entran ${qty(q*cont)} ${u} a ${moneyU(cu)} c/${u}`:'')});
   const t=$('#fTot');if(t)t.textContent=money(tot)}
-document.addEventListener('input',e=>{if(e.target.closest&&e.target.closest('#flines'))actualizarFactura()});
+document.addEventListener('input',e=>{if(e.target.closest&&e.target.closest('#flines')){if(e.target.id?.startsWith('fc_'))e.target.dataset.tocado='1';actualizarFactura()}});
 document.addEventListener('change',e=>{if(e.target.closest&&e.target.closest('#flines'))actualizarFactura()});
 
 /* ===== Vistas ===== */
@@ -643,7 +644,7 @@ function vProductos(){
   <p class="small muted" style="margin-top:-4px">Cada unidad carga ${money(fu)} de gastos fijos (${money(fijosMes())} al mes ÷ ${eq.base||0} unidades${+D.cfg.ventasMes?' esperadas':' vendidas este mes'}).</p>
   <div class="list">${prods.length?prods.map(p=>{const c=costoProd(p),real=c+fu,g=p.precio-real,m=p.precio?g/p.precio:0,falta=faltaCosto(p);
     return `<div class="li click" data-prod="${p.id}"><div class="main"><div class="t1">${esc(p.nombre)}</div>
-      <div class="t2">${esc(p.categoria||'Productos')} · ${p.variantes?p.variantes.length+' opciones':esRev(p)?'Reventa':Object.keys(p.receta||{}).filter(k=>+p.receta[k]>0).length+' insumos'}</div>
+      <div class="t2">${esc(p.categoria||'Productos')} · ${p.variantes?p.variantes.length+' opciones':esRev(p)?'Reventa':Object.keys(p.receta||{}).filter(k=>+p.receta[k]>0).length+' insumos'+(rindeDe(p)>1?' · se vende por porción (rinde '+rindeDe(p)+')':'')}</div>
       ${falta?'<div class="t2" style="color:var(--accent2)">Falta poner el costo</div>':`<div class="t2">${esRev(p)?'Costo':'Insumos'} ${money(c)} + fijos ${money(fu)} = <b style="color:var(--fg)">${money(real)}</b></div><div class="bar"><i style="width:${Math.max(0,Math.min(100,m*100)).toFixed(0)}%"></i></div>`}</div>
       <div class="r"><div class="big num">${money(p.precio)}</div><div class="t2" style="color:${g>=0?'var(--ok)':'var(--bad)'}">${falta?'—':'Ganas '+money(g)}</div><div class="t2">${falta?'':Math.round(m*100)+'% real'}</div></div></div>`}).join(''):'<div class="empty">No hay productos todavía.</div>'}</div>
   <p class="small muted">La barra es lo que de verdad te queda de cada venta después de insumos, arriendo, servicios y tu sueldo.</p>`;
@@ -772,6 +773,14 @@ function filaNuevoIng(n){return `<div class="newing" data-n="${n}">
   <div class="row"><label class="f">Costo de cada uno<input id="nc_${n}" name="nc_${n}" type="number" inputmode="decimal" min="0" step="any" placeholder="Ej: 12000"></label>
   <label class="f">¿Cuántos tienes?<input id="nt_${n}" name="nt_${n}" type="number" inputmode="decimal" min="0" step="any" placeholder="0"></label>
   <label class="f">Lleva la receta<input id="nl_${n}" name="nl_${n}" type="number" inputmode="decimal" min="0" step="any" value="1"></label></div></div>`}
+const rindeDe=p=>Math.max(1,+p?.rinde||1);
+function infoReceta(){const f=$('#sheetCard form');if(!f||!$('#pRinde'))return;const r=Math.max(1,+$('#pRinde').value||1);let c=0;
+  f.querySelectorAll('input[id^="r_"]').forEach(i=>{const it=D.ins[i.id.slice(2)];if(it)c+=(+i.value||0)*(+it.costo||0)});
+  f.querySelectorAll('#nuevosIng .newing').forEach(row=>{const n=row.dataset.n;c+=(+$('#nl_'+n)?.value||0)*(+$('#nc_'+n)?.value||0)});
+  const pr=numIn($('#pPre').value),box=$('#pCostoInfo');if(!box)return;box.hidden=!c;
+  box.innerHTML=r>1?`Receta completa: <b>${money(c)}</b> · Cada porción (1 de ${r}): <b>${money(c/r)}</b>${pr?` · Ganas ${money(pr-c/r)} por porción`:''}`:`Costo: <b>${money(c)}</b>${pr?` · Ganas ${money(pr-c)}`:''}`;
+  $('#pRindeInfo').textContent=r>1?'Escribe la receta completa (por ejemplo, el pastel entero). Cada venta descuenta una porción.':'Si vendes por porciones (un pastel de 8 tajadas), escribe cuántas sale y la receta completa. Si vendes la unidad entera, déjalo en 1.'}
+document.addEventListener('input',e=>{if(e.target.closest&&e.target.closest('#sheetCard form')&&$('#pRinde'))infoReceta()});
 function sheetProducto(id){
   if(id&&esRev(D.prod[id])&&D.prod[id].tipo==='reventa'){sheetReventa(id);return}
   const p=id?D.prod[id]:null,ins=sorted(D.ins).filter(i=>!i.variante&&!i.grupo).sort((a,b)=>(+(p?.receta?.[b.id]>0))-(+(p?.receta?.[a.id]>0)));
@@ -781,8 +790,11 @@ function sheetProducto(id){
     <div class="row"><label class="f">Precio de venta<input id="pPre" name="precio" type="text" inputmode="numeric" class="money" autocomplete="off" value="${fmtIn(p?.precio||'')}" required></label>
     <label class="f">Categoría<input id="pCat" name="categoria" list="catList" value="${esc(p?.categoria||'')}" placeholder="Ej: Cócteles"></label></div>
     <datalist id="catList">${cats.map(c=>`<option value="${esc(c)}">`).join('')}</datalist>
-    ${ins.length?`<div class="small muted" style="text-transform:uppercase;letter-spacing:.06em">Ingredientes que ya tienes · cuánto lleva UNA unidad (0 si no lleva)</div>
-    <div style="display:flex;flex-direction:column;gap:6px">${ins.map(i=>`<div class="rec"><span>${esc(i.nombre)}</span><input id="r_${i.id}" name="r_${i.id}" type="number" inputmode="decimal" min="0" step="any" value="${+(p?.receta?.[i.id])||0}"><span class="small muted">${U(i)}</span></div>`).join('')}</div>`:''}
+    <label class="f">¿Cuántas porciones rinde esta receta?<input id="pRinde" name="rinde" type="number" inputmode="numeric" min="1" step="1" value="${rindeDe(p)}"></label>
+    <div class="small muted" id="pRindeInfo" style="margin-top:-6px">${rindeDe(p)>1?'Escribe la receta completa (por ejemplo, el pastel entero). Cada venta descuenta una porción.':'Si vendes por porciones (un pastel de 8 tajadas), escribe cuántas sale y la receta completa. Si vendes la unidad entera, déjalo en 1.'}</div>
+    ${ins.length?`<div class="small muted" style="text-transform:uppercase;letter-spacing:.06em">Ingredientes que ya tienes · cuánto lleva la receta (0 si no lleva)</div>
+    <div style="display:flex;flex-direction:column;gap:6px">${ins.map(i=>`<div class="rec"><span>${esc(i.nombre)}</span><input id="r_${i.id}" name="r_${i.id}" type="number" inputmode="decimal" min="0" step="any" value="${+(+(p?.receta?.[i.id]||0)*rindeDe(p)).toFixed(3)}"><span class="small muted">${U(i)}</span></div>`).join('')}</div>`:''}
+    <div class="aviso" id="pCostoInfo" hidden></div>
     <div class="small muted" style="text-transform:uppercase;letter-spacing:.06em">${ins.length?'¿Lleva algo nuevo? Agrégalo aquí':'Ingredientes'}</div>
     <div id="nuevosIng" style="display:flex;flex-direction:column;gap:10px">${ins.length?'':filaNuevoIng(0)}</div>
     <button type="button" class="btn ghost block" data-act="masIng">+ Agregar ingrediente nuevo</button>
@@ -796,8 +808,10 @@ function sheetProducto(id){
       if(tengo>0)D.movs.push({id:uid(),tipo:'ajuste',fecha:ahora,insumoId:it.id,nombre:it.nombre,unidad:U(it),cant:tengo,nota:'Inventario inicial'});
       if(lleva>0)receta[it.id]=(receta[it.id]||0)+lleva});
     if(!Object.keys(receta).length){toast('Agrega al menos un ingrediente con lo que lleva la receta.');return}
-    const nid=id||uid();D.prod[nid]={id:nid,nombre:String(fd.get('nombre')).trim(),precio:+fd.get('precio')||0,categoria:String(fd.get('categoria')||'').trim()||'Productos',receta,orden:p?.orden??50};
+    const rinde=Math.max(1,Math.round(+fd.get('rinde')||1)),porc={};for(const k in receta)porc[k]=receta[k]/rinde;
+    const nid=id||uid();D.prod[nid]={id:nid,nombre:String(fd.get('nombre')).trim(),precio:+fd.get('precio')||0,categoria:String(fd.get('categoria')||'').trim()||'Productos',receta:porc,rinde,orden:p?.orden??50};
     done('Producto guardado')});
+  infoReceta();
 }
 function sheetReventa(id,modo){
   const p=id?D.prod[id]:null,M=mods(),ropa=modo==='ropa'||!!p?.tallas||(!!p&&p.categoria==='Ropa');
