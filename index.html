@@ -141,6 +141,12 @@ input[type=color]{height:44px;padding:4px;cursor:pointer}
 .dropzone{border:2px dashed var(--line);border-radius:14px;padding:10px;transition:border-color .15s,background .15s}
 .dropzone.over{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 10%,transparent)}
 .pasos{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;font-size:14px}
+.newing{display:flex;flex-direction:column;gap:8px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px}
+.newing .row > *{flex:1 1 90px}
+.fline{display:flex;flex-direction:column;gap:8px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px}
+.fline .row > *{flex:1 1 90px}
+.fline-foot{display:flex;align-items:center;gap:10px}.fline-foot .small{flex:1;min-width:0}.fline-foot .num{font-weight:700}
+.ftotal{display:flex;justify-content:space-between;align-items:center;background:var(--surface2);border-radius:12px;padding:12px 14px}.ftotal b{font-size:22px}
 [hidden]{display:none!important}
 </style>
 </head>
@@ -511,6 +517,53 @@ function vistaPrevia(){
     <button type="button" class="btn ghost block" data-act="close">Cancelar</button>`);
 }
 
+/* ===== Factura de compra ===== */
+const insPorNombre=n=>Object.values(D.ins).find(x=>normH(x.nombre)===normH(n));
+function lineaFactura(n,nombre=''){return `<div class="fline" data-n="${n}">
+  <div class="row"><label class="f" style="flex:3 1 170px">Producto o insumo<input id="fn_${n}" name="fn_${n}" list="insList" value="${esc(nombre)}" placeholder="Ej: Pitillos" autocomplete="off"></label>
+  <label class="f" style="flex:1 1 90px" id="fuL_${n}">Se mide en<select id="fu_${n}" name="fu_${n}"><option value="und">Unidades</option><option value="g">Gramos</option><option value="ml">Mililitros</option></select></label></div>
+  <div class="row"><label class="f">Cantidad<input id="fq_${n}" name="fq_${n}" type="number" inputmode="decimal" min="0" step="any" placeholder="0"></label>
+  <label class="f">Valor de cada uno<input id="fp_${n}" name="fp_${n}" type="text" inputmode="numeric" class="money" autocomplete="off" placeholder="0"></label>
+  <label class="f" id="fcL_${n}" hidden>Cada uno trae<input id="fc_${n}" name="fc_${n}" type="number" inputmode="decimal" min="0" step="any" placeholder="Ej: 1000"></label></div>
+  <div class="fline-foot"><span class="small muted" id="fi_${n}"></span><span class="num" id="fs_${n}"></span><button type="button" class="lnk" data-quitarlinea="${n}">Quitar</button></div></div>`}
+let FL=0;
+function sheetCompra(){
+  FL=0;const vprods=sorted(D.prod).filter(p=>p.variantes),c=cajaAbierta();
+  openSheet(`<h3>Factura de compra</h3>
+    <p class="small muted" style="margin:0">Agrega todo lo que compraste. Si algo no existe todavía, escríbelo y se crea al guardar.</p>
+    <form style="display:flex;flex-direction:column;gap:12px">
+    <div class="row"><label class="f">Proveedor (opcional)<input id="fProv" name="proveedor" list="provList" placeholder="Ej: Distribuidora El Mono" autocomplete="off"></label>
+    <label class="f">N° factura (opcional)<input id="fNum" name="numfac" autocomplete="off"></label></div>
+    <datalist id="provList">${[...new Set(D.movs.filter(m=>m.proveedor).map(m=>m.proveedor))].map(x=>`<option value="${esc(x)}">`).join('')}</datalist>
+    <datalist id="insList">${sorted(D.ins).map(i=>`<option value="${esc(i.nombre)}">`).join('')}</datalist>
+    <div id="flines" style="display:flex;flex-direction:column;gap:10px">${lineaFactura(FL++)}</div>
+    <button type="button" class="btn ghost block" data-act="masLinea">+ Agregar otro producto</button>
+    <div class="ftotal"><span>Total de la factura</span><b class="num" id="fTot">$0</b></div>
+    ${c?`<label class="chkline"><input type="checkbox" id="fCaja" name="caja"><span>La pagué con efectivo de la caja</span></label>`:''}
+    ${btns('Guardar compra')}</form>
+    ${vprods.length?`<button type="button" class="lnk" data-act="compraTallas" style="align-self:center">¿Compraste ropa por tallas? Registrar por tallas ›</button>`:''}`,
+  fd=>{const lines=[...document.querySelectorAll('#flines .fline')].map(r=>{const n=r.dataset.n;return{nombre:String(fd.get('fn_'+n)||'').trim(),unidad:String(fd.get('fu_'+n)||'und'),q:+fd.get('fq_'+n)||0,precio:+fd.get('fp_'+n)||0,cont:+fd.get('fc_'+n)||0}}).filter(l=>l.nombre&&l.q>0);
+    if(!lines.length){toast('Agrega al menos un producto con su cantidad.');return}
+    const fid=uid(),ahora=Date.now(),prov=String(fd.get('proveedor')||'').trim(),numfac=String(fd.get('numfac')||'').trim(),caja=!!fd.get('caja');let total=0;
+    for(const l of lines){let it=insPorNombre(l.nombre);
+      if(!it){const iid=uid()+'f';it=D.ins[iid]={id:iid,nombre:l.nombre,unidad:l.unidad,costo:0,minimo:l.unidad==='und'?3:200,orden:50}}
+      const u=U(it),cont=u==='und'?1:(l.cont||it.ultimoCont||1),cant=l.q*cont,cu=cont?l.precio/cont:0,tot=l.q*l.precio;total+=tot;
+      if(l.precio>0)it.costo=cu;if(u!=='und')it.ultimoCont=cont;
+      D.movs.push({id:uid(),tipo:'compra',fecha:ahora,fid,proveedor:prov,numfac,insumoId:it.id,nombre:it.nombre,unidad:u,cant,costoUnit:cu,total:tot,caja})}
+    done(`Compra guardada: ${lines.length} ${lines.length===1?'producto':'productos'} por ${money(total)}`)});
+  actualizarFactura();
+}
+function actualizarFactura(){let tot=0;
+  document.querySelectorAll('#flines .fline').forEach(r=>{const n=r.dataset.n,nm=$('#fn_'+n).value.trim(),it=nm?insPorNombre(nm):null,u=it?U(it):$('#fu_'+n).value;
+    $('#fuL_'+n).hidden=!!it;$('#fcL_'+n).hidden=u==='und';
+    if(u!=='und'){$('#fcL_'+n).firstChild.textContent='Cada uno trae ('+u+')';if(it&&it.ultimoCont&&!$('#fc_'+n).value)$('#fc_'+n).value=it.ultimoCont}
+    const q=+$('#fq_'+n).value||0,pr=numIn($('#fp_'+n).value),sub=q*pr;tot+=sub;
+    $('#fs_'+n).textContent=sub?money(sub):'';
+    $('#fi_'+n).textContent=!nm?'':it?(u==='und'?`Tienes ${qty(stock()[it.id]||0)} · último costo ${money(it.costo)}`:`Tienes ${qty(stock()[it.id]||0)} ${u}`):'Nuevo: se crea al guardar'});
+  const t=$('#fTot');if(t)t.textContent=money(tot)}
+document.addEventListener('input',e=>{if(e.target.closest&&e.target.closest('#flines'))actualizarFactura()});
+document.addEventListener('change',e=>{if(e.target.closest&&e.target.closest('#flines'))actualizarFactura()});
+
 /* ===== Vistas ===== */
 function render(){
   aplicarTema();
@@ -570,7 +623,7 @@ function vInventario(){
   const st=stock(),all=sorted(D.ins),ins=all.filter(i=>!i.variante),tot=all.reduce((a,i)=>a+Math.max(0,st[i.id]||0)*(+i.costo||0),0),alertas=all.filter(i=>(st[i.id]||0)<=(i.minimo||0)).length,M=mods(),vprods=sorted(D.prod).filter(p=>p.variantes);
   return `<div class="kpis" style="grid-template-columns:repeat(2,minmax(0,1fr))"><div class="kpi b"><div class="l">Valor en bodega</div><div class="v">${money(tot)}</div></div>
     <div class="kpi a"><div class="l">Por comprar</div><div class="v">${alertas}</div></div></div>
-  <div class="row" style="margin-top:12px"><button class="btn yellow" data-act="compra">+ Registrar compra</button>${M.recetas?'<button class="btn ghost" data-act="nuevoIns">Nuevo insumo</button>':''}</div>
+  <div class="row" style="margin-top:12px"><button class="btn yellow" data-act="compra">+ Factura de compra</button>${M.recetas?'<button class="btn ghost" data-act="nuevoIns">Nuevo insumo</button>':''}</div>
   <h2><span class="hl">${M.recetas?'Insumos y productos':'Productos'}</span></h2>
   <div class="list">${ins.length?ins.map(i=>{const q=st[i.id]||0,[cl,lb]=nivel(q,i.minimo);
     return `<div class="li click" data-ins="${i.id}"><div class="main"><div class="t1">${esc(i.nombre)}</div>
@@ -611,6 +664,15 @@ function vGastos(){
   <p class="small muted" style="margin-top:-4px">Lo que no es fijo: transporte, domicilios, publicidad puntual, empaques sueltos. Este mes van ${money(tv.gastos)}.</p>
   <button class="btn yellow block" data-act="gasto">+ Registrar gasto</button>`;
 }
+function agruparFacturas(movs){const out=[],seen={};
+  for(const m of movs){if(m.tipo==='compra'&&m.fid){if(seen[m.fid]){seen[m.fid].lineas.push(m);seen[m.fid].total+=+m.total||0;continue}
+    const g={tipo:'factura',fid:m.fid,fecha:m.fecha,proveedor:m.proveedor,numfac:m.numfac,caja:m.caja,lineas:[m],total:+m.total||0};seen[m.fid]=g;out.push(g)}else out.push(m)}
+  return out}
+function sheetFactura(fid){const ls=D.movs.filter(m=>m.fid===fid);if(!ls.length)return;const f=ls[0],tot=ls.reduce((a,m)=>a+(+m.total||0),0);
+  openSheet(`<h3>Compra${f.numfac?' N° '+esc(f.numfac):''}</h3><div class="small muted" style="margin-top:-6px">${fmtFecha(f.fecha)}${f.proveedor?' · '+esc(f.proveedor):''}${f.caja?' · Pagada con la caja':''}</div>
+    <div class="list">${ls.map(m=>`<div class="li"><div class="main"><div class="t1">${esc(m.nombre)}</div><div class="t2">${qty(m.cant)} ${esc(m.unidad||'und')} · ${moneyU(m.costoUnit)} c/u</div></div><div class="big num">${money(m.total)}</div></div>`).join('')}
+    <div class="li" style="background:var(--surface2)"><div class="main" style="font-weight:800">Total</div><div class="big num">${money(tot)}</div></div></div>
+    <button type="button" class="btn ghost block" data-act="close">Cerrar</button>`)}
 function vResumen(){
   const per=S.period,r=per==='mes'?rango('mes',S.mesOff):per==='anio'?rango('anio',0,S.anio):rango(per);
   const t=reales(r),movs=D.movs.filter(m=>(m.fecha||0)>=r.t0&&(m.fecha||0)<r.t1).sort((a,b)=>b.fecha-a.fecha);
@@ -640,7 +702,8 @@ function vResumen(){
   ${tabla}
   ${top.length?`<h2><span class="hl">Lo más vendido</span></h2><div class="list">${top.map(([n,q])=>`<div class="li"><div class="main"><div class="t1">${esc(n)}</div><div class="bar"><i style="width:${(q/mx*100).toFixed(0)}%"></i></div></div><div class="big num">${q}</div></div>`).join('')}</div>`:''}
   <h2><span class="hl">Historial</span></h2>
-  ${movs.length>150?`<p class="small muted" style="margin-top:-4px">Se muestran los 150 movimientos más recientes de este periodo.</p>`:''}<div class="list">${movs.length?movs.slice(0,150).map(m=>{
+  ${movs.length>150?`<p class="small muted" style="margin-top:-4px">Se muestran los 150 movimientos más recientes de este periodo.</p>`:''}<div class="list">${movs.length?agruparFacturas(movs).slice(0,150).map(m=>{
+    if(m.tipo==='factura')return `<div class="li click" data-factura="${m.fid}"><div class="main"><div class="t1">Compra${m.numfac?' N° '+esc(m.numfac):''}${m.proveedor?' · '+esc(m.proveedor):''}: ${m.lineas.length} productos</div><div class="t2">${fmtFecha(m.fecha)}${m.caja?' · De la caja':''} · ${m.lineas.slice(0,3).map(l=>qty(l.cant)+' '+esc(l.nombre)).join(', ')}${m.lineas.length>3?'…':''}</div></div><div class="r"><div class="num" style="font-size:18px">${money(-m.total)}</div><button class="lnk ${S.confirmDel===m.fid?'danger':''}" data-delfac="${m.fid}">${S.confirmDel===m.fid?'¿Borrar? Sí':'Borrar'}</button></div></div>`;
     const desc=m.tipo==='venta'?(m.items||[]).map(i=>i.cant+'× '+i.nombre+(i.variante?' ('+i.variante+')':'')).join(', '):m.tipo==='gasto'?m.concepto:(m.tipo==='ajuste'&&m.cant>0?'+':'')+qty(m.cant)+' '+(m.unidad||'')+' '+(m.nombre||'');
     const val=m.tipo==='venta'?m.total:m.tipo==='gasto'?-m.valor:m.tipo==='compra'?-m.total:null;
     return `<div class="li"><div class="main"><div class="t1">${lbl[m.tipo]}${m.num?' N° '+m.num:''}: ${esc(desc)}</div><div class="t2">${fmtFecha(m.fecha)}${m.tipo==='venta'?' · '+esc(m.pago!=='Fiado'?(m.pago||'Efectivo'):saldo(m)<1?'Fiado pagado':'Fiado, debe '+money(saldo(m))):''}${m.caja?' · De la caja':''}${m.cliente?' · '+esc(m.cliente):''}${m.nota?' · '+esc(m.nota):''}</div></div>
@@ -660,7 +723,7 @@ const insOpts=sel=>sorted(D.ins).map(i=>`<option value="${i.id}" ${i.id===sel?'s
 const unidadSel=(v)=>`<select name="unidad" id="iUni">${[['und','Unidades (und)'],['g','Gramos (g)'],['ml','Mililitros (ml)']].map(([k,t])=>`<option value="${k}" ${v===k?'selected':''}>${t}</option>`).join('')}</select>`;
 function done(msg){if(save()){toast(msg);closeSheet()}}
 
-function sheetCompra(){
+function sheetCompraTallas(){
   const sueltos=sorted(D.ins).filter(i=>!i.variante),vprods=sorted(D.prod).filter(p=>p.variantes);
   if(!sueltos.length&&!vprods.length){toast('Primero agrega un producto o insumo.');return}
   const opts=sueltos.map(i=>`<option value="i:${i.id}">${esc(i.nombre)} (${U(i)})</option>`).join('')+(vprods.length?`<optgroup label="Con tallas, colores o tonos">${vprods.map(p=>`<option value="p:${p.id}">${esc(p.nombre)}</option>`).join('')}</optgroup>`:'');
@@ -694,29 +757,45 @@ function sheetInsumo(id){
   openSheet(`<h3>${i?esc(i.nombre):'Nuevo insumo'}</h3><form style="display:flex;flex-direction:column;gap:12px">
     <label class="f">Nombre<input id="iNom" name="nombre" value="${esc(i?.nombre||'')}" placeholder="Ej: Azúcar" required></label>
     <div class="row"><label class="f">Se mide en${unidadSel(i?.unidad||'und')}</label>
-    <label class="f">Costo por unidad de medida<input id="iCosto" name="costo" type="number" inputmode="decimal" min="0" step="any" value="${i?(+i.costo||''):''}" placeholder="Se calcula al comprar"></label></div>
+    <label class="f">Costo por unidad de medida<input id="iCosto" name="costo" type="number" inputmode="decimal" min="0" step="any" value="${i?(+i.costo||''):''}" placeholder="Ej: 12000"></label></div>
     <label class="f">Avisar cuando queden menos de<input id="iMin" name="minimo" type="number" inputmode="decimal" min="0" step="any" value="${i?.minimo??3}"></label>
-    ${i?`<label class="f">Conteo real (hoy dice ${qty(st[id]||0)} ${U(i)})<input id="iConteo" name="conteo" type="number" inputmode="decimal" step="any" placeholder="Vacío si está bien"></label>`:''}
+    ${i?`<label class="f">Conteo real (hoy dice ${qty(st[id]||0)} ${U(i)})<input id="iConteo" name="conteo" type="number" inputmode="decimal" step="any" placeholder="Vacío si está bien"></label>`:`<label class="f">¿Cuántos tienes ahora?<input id="iTengo" name="tengo" type="number" inputmode="decimal" min="0" step="any" placeholder="0"></label>`}
     ${btns('Guardar',i?`<button type="button" class="btn ghost" data-delins="${id}">Eliminar</button>`:'')}</form>`,
   fd=>{const data={nombre:String(fd.get('nombre')).trim(),unidad:fd.get('unidad'),costo:+fd.get('costo')||0,minimo:+fd.get('minimo')||0};
     if(i){Object.assign(i,data);const c=fd.get('conteo');if(c!==null&&c!==''){const diff=+c-(st[id]||0);if(diff)D.movs.push({id:uid(),tipo:'ajuste',fecha:Date.now(),insumoId:id,nombre:data.nombre,unidad:data.unidad,cant:diff,nota:'Conteo real'})}}
-    else{const nid=uid();D.ins[nid]={id:nid,...data,orden:50}}
+    else{const nid=uid();D.ins[nid]={id:nid,...data,orden:50};const t=+fd.get('tengo')||0;if(t>0)D.movs.push({id:uid(),tipo:'ajuste',fecha:Date.now(),insumoId:nid,nombre:data.nombre,unidad:data.unidad,cant:t,nota:'Inventario inicial'})}
     done('Insumo guardado')});
 }
+function filaNuevoIng(n){return `<div class="newing" data-n="${n}">
+  <div class="row"><label class="f" style="flex:2 1 160px">Ingrediente<input id="nn_${n}" name="nn_${n}" placeholder="Ej: Kit Maracusaur, Aguardiente 50 ml" autocomplete="off"></label>
+  <label class="f" style="flex:1 1 90px">Se mide en<select id="nu_${n}" name="nu_${n}"><option value="und">Unidades</option><option value="g">Gramos</option><option value="ml">Mililitros</option></select></label></div>
+  <div class="row"><label class="f">Costo de cada uno<input id="nc_${n}" name="nc_${n}" type="number" inputmode="decimal" min="0" step="any" placeholder="Ej: 12000"></label>
+  <label class="f">¿Cuántos tienes?<input id="nt_${n}" name="nt_${n}" type="number" inputmode="decimal" min="0" step="any" placeholder="0"></label>
+  <label class="f">Lleva la receta<input id="nl_${n}" name="nl_${n}" type="number" inputmode="decimal" min="0" step="any" value="1"></label></div></div>`}
 function sheetProducto(id){
   if(id&&esRev(D.prod[id])&&D.prod[id].tipo==='reventa'){sheetReventa(id);return}
-  const p=id?D.prod[id]:null,ins=sorted(D.ins).filter(i=>!i.variante);
-  if(!ins.length){toast('Primero agrega insumos en Inventario.');return}
+  const p=id?D.prod[id]:null,ins=sorted(D.ins).filter(i=>!i.variante&&!i.grupo).sort((a,b)=>(+(p?.receta?.[b.id]>0))-(+(p?.receta?.[a.id]>0)));
   const cats=[...new Set(Object.values(D.prod).map(x=>x.categoria||'Productos'))];
-  openSheet(`<h3>${p?esc(p.nombre):'Nuevo producto'}</h3><form style="display:flex;flex-direction:column;gap:12px">
-    <label class="f">Nombre<input id="pNom" name="nombre" value="${esc(p?.nombre||'')}" required></label>
+  openSheet(`<h3>${p?esc(p.nombre):'Nuevo producto con receta'}</h3><form style="display:flex;flex-direction:column;gap:12px">
+    <label class="f">Nombre<input id="pNom" name="nombre" value="${esc(p?.nombre||'')}" placeholder="Ej: Maracusaur" required></label>
     <div class="row"><label class="f">Precio de venta<input id="pPre" name="precio" type="text" inputmode="numeric" class="money" autocomplete="off" value="${fmtIn(p?.precio||'')}" required></label>
-    <label class="f">Categoría<input id="pCat" name="categoria" list="catList" value="${esc(p?.categoria||'')}" placeholder="Ej: Tortas"></label></div>
+    <label class="f">Categoría<input id="pCat" name="categoria" list="catList" value="${esc(p?.categoria||'')}" placeholder="Ej: Cócteles"></label></div>
     <datalist id="catList">${cats.map(c=>`<option value="${esc(c)}">`).join('')}</datalist>
-    <div class="small muted">Receta: cuánto lleva de cada insumo para UNA unidad (0 si no lleva).</div>
-    <div style="display:flex;flex-direction:column;gap:6px">${ins.map(i=>`<div class="rec"><span>${esc(i.nombre)}</span><input id="r_${i.id}" name="r_${i.id}" type="number" inputmode="decimal" min="0" step="any" value="${+(p?.receta?.[i.id])||0}"><span class="small muted">${U(i)}</span></div>`).join('')}</div>
+    ${ins.length?`<div class="small muted" style="text-transform:uppercase;letter-spacing:.06em">Ingredientes que ya tienes · cuánto lleva UNA unidad (0 si no lleva)</div>
+    <div style="display:flex;flex-direction:column;gap:6px">${ins.map(i=>`<div class="rec"><span>${esc(i.nombre)}</span><input id="r_${i.id}" name="r_${i.id}" type="number" inputmode="decimal" min="0" step="any" value="${+(p?.receta?.[i.id])||0}"><span class="small muted">${U(i)}</span></div>`).join('')}</div>`:''}
+    <div class="small muted" style="text-transform:uppercase;letter-spacing:.06em">${ins.length?'¿Lleva algo nuevo? Agrégalo aquí':'Ingredientes'}</div>
+    <div id="nuevosIng" style="display:flex;flex-direction:column;gap:10px">${ins.length?'':filaNuevoIng(0)}</div>
+    <button type="button" class="btn ghost block" data-act="masIng">+ Agregar ingrediente nuevo</button>
     ${btns('Guardar',p?`<button type="button" class="btn ghost" data-delprod="${id}">Eliminar</button>`:'')}</form>`,
   fd=>{const receta={};for(const i of ins){const q=+fd.get('r_'+i.id)||0;if(q>0)receta[i.id]=q}
+    const ahora=Date.now();
+    document.querySelectorAll('#nuevosIng .newing').forEach(row=>{const n=row.dataset.n,nombre=String(fd.get('nn_'+n)||'').trim();if(!nombre)return;
+      const unidad=String(fd.get('nu_'+n)||'und'),costo=+fd.get('nc_'+n)||0,tengo=+fd.get('nt_'+n)||0,lleva=+fd.get('nl_'+n)||0;
+      let it=Object.values(D.ins).find(x=>!x.variante&&!x.grupo&&normH(x.nombre)===normH(nombre));
+      if(!it){const iid=uid()+n;it=D.ins[iid]={id:iid,nombre,unidad,costo,minimo:unidad==='und'?3:200,orden:50}}else if(costo)it.costo=costo;
+      if(tengo>0)D.movs.push({id:uid(),tipo:'ajuste',fecha:ahora,insumoId:it.id,nombre:it.nombre,unidad:U(it),cant:tengo,nota:'Inventario inicial'});
+      if(lleva>0)receta[it.id]=(receta[it.id]||0)+lleva});
+    if(!Object.keys(receta).length){toast('Agrega al menos un ingrediente con lo que lleva la receta.');return}
     const nid=id||uid();D.prod[nid]={id:nid,nombre:String(fd.get('nombre')).trim(),precio:+fd.get('precio')||0,categoria:String(fd.get('categoria')||'').trim()||'Productos',receta,orden:p?.orden??50};
     done('Producto guardado')});
 }
@@ -958,12 +1037,15 @@ async function entregarPdf(id,share){
 }
 function confirmar(t,fn){if(!t.dataset.armed){t.dataset.armed='1';t.textContent='¿Seguro? Toca otra vez';t.classList.add('danger');return}fn()}
 document.addEventListener('click',e=>{
-  const t=e.target.closest('button,[data-ins],[data-prod],[data-fijo],[data-vermes],[data-cierre],[data-cli]');if(!t)return;const d=t.dataset;
+  const t=e.target.closest('button,[data-ins],[data-prod],[data-fijo],[data-vermes],[data-cierre],[data-cli],[data-factura]');if(!t)return;const d=t.dataset;
   if(d.tema){D.cfg.tema=d.tema;delete D.cfg.colores;save();aplicarTema();sheetAjustes();return}
   if(d.wmod||d.wej){if(d.wmod)S.wMods[d.wmod]=!S.wMods[d.wmod];else S.wEj=!S.wEj;const n=$('#wNombre')?.value;render();if(n)$('#wNombre').value=n;return}
   if(d.mod){const m={...mods()};m[d.mod]=!m[d.mod];if(!Object.values(m).some(Boolean)){toast('Deja al menos una opción activa.');return}D.cfg.modulos=m;save();sheetAjustes();return}
   if(d.pick){sheetElegir(d.pick);return}
   if(d.cierre){sheetCierre(d.cierre);return}
+  if(d.delfac){if(S.confirmDel!==d.delfac){S.confirmDel=d.delfac;render();return}S.confirmDel=null;D.movs=D.movs.filter(m=>m.fid!==d.delfac);save();render();toast('Compra borrada');return}
+  if(d.factura){sheetFactura(d.factura);return}
+  if(d.quitarlinea!==undefined){const r=document.querySelector(`.fline[data-n="${d.quitarlinea}"]`);if(document.querySelectorAll('#flines .fline').length>1)r?.remove();else{r.querySelectorAll('input').forEach(i=>i.value='')}actualizarFactura();return}
   if(d.cli){sheetCliente(d.cli);return}
   if(d.delcm){if(S.confirmDel!==d.delcm){S.confirmDel=d.delcm;render();return}S.confirmDel=null;const c=cajaAbierta();if(c){c.movs=(c.movs||[]).filter(x=>x.id!==d.delcm);save()}render();return}
   if(d.pdf){entregarPdf(d.vid,d.pdf==='share');return}
@@ -989,6 +1071,7 @@ document.addEventListener('click',e=>{
     case 'clearCart':S.cart={};render();break;
     case 'sell':sheetCobrar();break;
     case 'importar2':sheetImportar();break;
+    case 'masIng':{const c=$('#nuevosIng'),n=c.children.length+(+Date.now()%1000)*10;c.insertAdjacentHTML('beforeend',filaNuevoIng(n));$('#nn_'+n).focus();break}
     case 'plantilla':descargarPlantilla();break;
     case 'subirExcel':$('#excelFile').click();break;
     case 'confirmarImport':{if(!IMPORT)return;const r=aplicarImport(IMPORT);IMPORT=null;if(save()){toast(`Listo: ${r.nuevos} nuevos, ${r.actual} actualizados, ${r.und} unidades`);S.tab='inventario';closeSheet()}break}
@@ -999,6 +1082,8 @@ document.addEventListener('click',e=>{
     case 'cerrarCaja':sheetCerrarCaja();break;
     case 'datosRecibo':sheetDatosRecibo(d.volver);break;
     case 'compra':sheetCompra();break;
+    case 'compraTallas':sheetCompraTallas();break;
+    case 'masLinea':{$('#flines').insertAdjacentHTML('beforeend',lineaFactura(FL));$('#fn_'+FL).focus();FL++;actualizarFactura();break}
     case 'nuevoIns':sheetInsumo();break;
     case 'nuevoProd':sheetProducto();break;
     case 'nuevoReventa':sheetReventa();break;
