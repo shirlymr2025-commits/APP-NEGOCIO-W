@@ -1,5 +1,5 @@
 // Permite abrir la app sin internet. Cambia el número de versión cada vez que subas cambios.
-const CACHE = 'mi-negocio-v18';
+const CACHE = 'mi-negocio-v20';
 const FILES = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './jspdf.umd.min.js', './xlsx.full.min.js'];
 
 self.addEventListener('install', e => {

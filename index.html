@@ -184,11 +184,11 @@ const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 /* ===== Colores ===== */
 const TEMAS={
   neon:{nombre:'Neón',dark:1,bg:'#141216',surface:'#1e1b21',surface2:'#28242c',line:'#36313b',fg:'#f5f0f7',muted:'#a69eae',accent:'#ff2e93',accent2:'#ffe600',ok:'#3ddc84',bad:'#ff5a5a'},
-  pastel:{nombre:'Pastel',dark:0,bg:'#fff6f8',surface:'#ffffff',surface2:'#fbe7ee',line:'#f0d3dd',fg:'#2b1d22',muted:'#8a6f78',accent:'#e0558a',accent2:'#f4b740',ok:'#1f9d5c',bad:'#d93a3a'},
+  pastel:{nombre:'Pastel',dark:0,bg:'#fff6f8',surface:'#ffffff',surface2:'#fbe7ee',line:'#f0d3dd',fg:'#2b1d22',muted:'#8a6f78',accent:'#e0558a',accent2:'#c2850c',ok:'#1f9d5c',bad:'#d93a3a'},
   chocolate:{nombre:'Chocolate',dark:1,bg:'#1c1411',surface:'#271c18',surface2:'#33251f',line:'#45332b',fg:'#f7ece4',muted:'#b39d90',accent:'#e8925a',accent2:'#f3d27a',ok:'#5fd38d',bad:'#ff6b5e'},
-  menta:{nombre:'Menta',dark:0,bg:'#f3faf7',surface:'#ffffff',surface2:'#e0f2ea',line:'#c9e6d9',fg:'#16302a',muted:'#5f7d74',accent:'#14a37f',accent2:'#ffb547',ok:'#14a37f',bad:'#d94848'},
+  menta:{nombre:'Menta',dark:0,bg:'#f3faf7',surface:'#ffffff',surface2:'#e0f2ea',line:'#c9e6d9',fg:'#16302a',muted:'#5f7d74',accent:'#14a37f',accent2:'#c97a00',ok:'#14a37f',bad:'#d94848'},
   oceano:{nombre:'Océano',dark:1,bg:'#0f1622',surface:'#17202e',surface2:'#1f2a3b',line:'#2b384c',fg:'#eef3fa',muted:'#94a3b8',accent:'#3b9eff',accent2:'#5eead4',ok:'#4ade80',bad:'#f87171'},
-  clasico:{nombre:'Clásico',dark:0,bg:'#f6f6f4',surface:'#ffffff',surface2:'#ececea',line:'#dddcd8',fg:'#1c1c1a',muted:'#6e6d68',accent:'#1c1c1a',accent2:'#e4b43c',ok:'#2f9e5b',bad:'#d0453b'}
+  clasico:{nombre:'Clásico',dark:0,bg:'#f6f6f4',surface:'#ffffff',surface2:'#ececea',line:'#dddcd8',fg:'#1c1c1a',muted:'#6e6d68',accent:'#1c1c1a',accent2:'#a87a08',ok:'#2f9e5b',bad:'#d0453b'}
 };
 const textoSobre=hex=>{const n=parseInt(String(hex).slice(1),16),r=n>>16&255,g=n>>8&255,b=n&255;return (r*299+g*587+b*114)/1000>150?'#141216':'#ffffff'};
 function aplicarTema(){
@@ -267,9 +267,14 @@ const fijosMes=(k=mesHoy())=>Object.values(D.fijos).reduce((a,f)=>a+valorFijo(f,
 const fijosPeriodo=per=>{const f=fijosMes();return per==='mes'?f:per==='semana'?f/diasMes()*7:f/diasMes()};
 function desde(per){const d=new Date();d.setHours(0,0,0,0);if(per==='semana')d.setDate(d.getDate()-6);if(per==='mes')d.setDate(1);return d.getTime()}
 const MESES=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+function primerMes(){let m=Infinity;for(const x of D.movs)if(x.fecha&&x.fecha<m)m=x.fecha;for(const c of (D.cajas||[]))if(c.abierta<m)m=c.abierta;return mesKey(new Date(m===Infinity?Date.now():m))}
+function fijosDelMes(d){const k=mesKey(d),now=new Date();if(k<primerMes()||k>mesKey(now))return{v:0,dias:0,dm:new Date(d.getFullYear(),d.getMonth()+1,0).getDate()};
+  const dm=new Date(d.getFullYear(),d.getMonth()+1,0).getDate(),dias=k===mesKey(now)?now.getDate():dm;return{v:fijosMes(k)*dias/dm,dias,dm}}
 function rango(per,off=0,anio){const now=new Date(),fm=fijosMes();
-  if(per==='mes'){const d=new Date(now.getFullYear(),now.getMonth()+off,1),e=new Date(d.getFullYear(),d.getMonth()+1,1);return{t0:+d,t1:+e,fij:fijosMes(mesKey(d)),label:MESES[d.getMonth()]+' '+d.getFullYear(),fijLbl:'mes completo'}}
-  if(per==='anio'){const y=anio??now.getFullYear(),n=y<now.getFullYear()?12:y===now.getFullYear()?now.getMonth()+1:0;let fy=0;for(let i=0;i<n;i++)fy+=fijosMes(mesKey(new Date(y,i,1)));return{t0:+new Date(y,0,1),t1:+new Date(y+1,0,1),fij:fy,label:String(y),fijLbl:n+(n===1?' mes':' meses')}}
+  if(per==='mes'){const d=new Date(now.getFullYear(),now.getMonth()+off,1),e=new Date(d.getFullYear(),d.getMonth()+1,1),f=fijosDelMes(d);
+    return{t0:+d,t1:+e,fij:f.v,label:MESES[d.getMonth()]+' '+d.getFullYear(),fijLbl:!f.dias?'antes de usar la app':f.dias<f.dm?`lo que va del mes: ${f.dias} de ${f.dm} días`:'mes completo'}}
+  if(per==='anio'){const y=anio??now.getFullYear();let fy=0,n=0;for(let i=0;i<12;i++){const f=fijosDelMes(new Date(y,i,1));fy+=f.v;if(f.dias)n++}
+    return{t0:+new Date(y,0,1),t1:+new Date(y+1,0,1),fij:fy,label:String(y),fijLbl:n?(n===1?'1 mes':n+' meses')+(y===now.getFullYear()?', el actual hasta hoy':''):'sin meses'}}
   const t0=desde(per);return{t0,t1:Infinity,fij:per==='semana'?fm/diasMes()*7:fm/diasMes(),fijLbl:per==='semana'?'7 días':'1 día'}}
 function totales(per,rg){const r=rg||rango(per),t0=r.t0;let ventas=0,costo=0,gastos=0,compras=0,n=0;const porProd={};
   for(const m of D.movs){if((m.fecha||0)<t0||(m.fecha||0)>=r.t1)continue;
@@ -279,8 +284,13 @@ function totales(per,rg){const r=rg||rango(per),t0=r.t0;let ventas=0,costo=0,gas
 function reales(r){const t=totales(null,r),fij=r.fij,antes=t.bruta-t.gastos-fij,reserva=antes>0?antes*(+D.cfg.reservaPct||0)/100:0;return{...t,fij,antes,reserva,real:antes-reserva}}
 function equilibrio(){const t=totales('mes');let margen=t.n?(t.ventas-t.costo)/t.n:0;
   if(!margen){const ps=Object.values(D.prod).filter(p=>!faltaCosto(p));if(ps.length)margen=ps.reduce((a,p)=>a+p.precio-costoProd(p),0)/ps.length}
-  const f=fijosMes(),unidades=margen>0?Math.ceil(f/margen):0,base=+D.cfg.ventasMes||t.n||unidades;
-  return{margen,unidades,porDia:unidades?Math.ceil(unidades/diasMes()):0,vendidas:t.n,fijoUnidad:base?f/base:0,base}}
+  const f=fijosMes(),unidades=margen>0?Math.ceil(f/margen):0;
+  let base=+D.cfg.ventasMes,baseLbl='que esperas vender';
+  if(!base){const now=new Date(),prev=[1,2,3].map(o=>totales(null,rango('mes',-o)).n).filter(x=>x>0);
+    if(prev.length){base=Math.round(prev.reduce((a,x)=>a+x,0)/prev.length);baseLbl='promedio de los meses anteriores'}
+    else if(t.n&&now.getDate()>=7){base=Math.round(t.n/now.getDate()*diasMes());baseLbl='proyección de este mes'}
+    else{base=unidades;baseLbl='necesarias para cubrir los fijos'}}
+  return{margen,unidades,porDia:unidades?Math.ceil(unidades/diasMes()):0,vendidas:t.n,fijoUnidad:base?f/base:0,base,baseLbl}}
 function lineaCart(k){const [pid,iid]=k.split('|'),p=D.prod[pid];if(!p)return null;
   if(iid){const v=p.variantes?.find(v=>v.ins===iid);if(!v||!D.ins[iid])return null;return{p,variante:v.nombre,nombre:p.nombre+' · '+v.nombre,costo:+D.ins[iid].costo||0,consumo:{[iid]:1}}}
   if(p.variantes)return null;return{p,variante:'',nombre:p.nombre,costo:costoProd(p),consumo:p.receta||{}}}
@@ -641,7 +651,7 @@ function vProductos(){
   return `<div class="row">${M.recetas?'<button class="btn yellow" data-act="nuevoProd">+ Con receta</button>':''}${M.reventa?`<button class="btn ${M.recetas?'ghost':'yellow'}" data-act="nuevoReventa">+ Para revender</button>`:''}${M.ropa?`<button class="btn ${M.recetas||M.reventa?'ghost':'yellow'}" data-act="nuevaPrenda">+ Prenda</button>`:''}</div>
   <button class="btn ghost block" data-act="importar2" style="margin-top:8px">Importar muchos productos desde Excel</button>
   <h2><span class="hl">Costo real por unidad</span></h2>
-  <p class="small muted" style="margin-top:-4px">Cada unidad carga ${money(fu)} de gastos fijos (${money(fijosMes())} al mes ÷ ${eq.base||0} unidades${+D.cfg.ventasMes?' esperadas':' vendidas este mes'}).</p>
+  <p class="small muted" style="margin-top:-4px">Cada unidad carga ${money(fu)} de gastos fijos (${money(fijosMes())} al mes ÷ ${eq.base||0} unidades, ${eq.baseLbl}).</p>
   <div class="list">${prods.length?prods.map(p=>{const c=costoProd(p),real=c+fu,g=p.precio-real,m=p.precio?g/p.precio:0,falta=faltaCosto(p);
     return `<div class="li click" data-prod="${p.id}"><div class="main"><div class="t1">${esc(p.nombre)}</div>
       <div class="t2">${esc(p.categoria||'Productos')} · ${p.variantes?p.variantes.length+' opciones':esRev(p)?'Reventa':Object.keys(p.receta||{}).filter(k=>+p.receta[k]>0).length+' insumos'+(rindeDe(p)>1?' · se vende por porción (rinde '+rindeDe(p)+')':'')}</div>
@@ -683,10 +693,10 @@ function vResumen(){
     :per==='anio'?`<div class="pnav"><button class="btn ghost" data-ynav="-1" aria-label="Año anterior" ${S.anio<=primerY?'disabled':''}>‹</button><b>${r.label}</b><button class="btn ghost" data-ynav="1" aria-label="Año siguiente" ${S.anio>=nowY?'disabled':''}>›</button></div>`:'';
   let tabla='';
   if(per==='anio'){const fm=fijosMes(),now=new Date(),filas=[];
-    for(let i=0;i<12;i++){if(S.anio===nowY&&i>now.getMonth())break;const off=(S.anio-now.getFullYear())*12+(i-now.getMonth()),rm=rango('mes',off),tm=reales(rm);filas.push({i,off,tm})}
+    for(let i=0;i<12;i++){if(S.anio===nowY&&i>now.getMonth())break;if(mesKey(new Date(S.anio,i,1))<primerMes())continue;const off=(S.anio-now.getFullYear())*12+(i-now.getMonth()),rm=rango('mes',off),tm=reales(rm);filas.push({i,off,tm})}
     const vmx=Math.max(1,...filas.map(f=>f.tm.ventas));
     tabla=`<h2><span class="hl">Mes por mes</span></h2><div class="list">${filas.slice().reverse().map(f=>`<div class="li click" data-vermes="${f.off}"><div class="main"><div class="t1">${MESES[f.i]}</div><div class="t2">${f.tm.n} vendidos · ganancia real <b style="color:${f.tm.real>=0?'var(--ok)':'var(--bad)'}">${money(f.tm.real)}</b></div><div class="bar"><i style="width:${(f.tm.ventas/vmx*100).toFixed(0)}%"></i></div></div><div class="r"><div class="big num">${money(f.tm.ventas)}</div><div class="t2">ventas</div></div></div>`).join('')}</div>
-    <p class="small muted">Toca un mes para ver su detalle. Cada mes usa los gastos fijos que tenía en ese momento.</p>`}
+    <p class="small muted">Toca un mes para ver su detalle. Cada mes usa los gastos fijos que tenía en ese momento; el mes actual cuenta solo los días que van.</p>`}
   return `<div class="seg">${['hoy','semana','mes','anio'].map(p=>`<button data-per="${p}" class="${per===p?'on':''}">${{hoy:'Hoy',semana:'7 días',mes:'Mes',anio:'Año'}[p]}</button>`).join('')}</div>
   ${nav}
   <div class="list" style="margin-top:12px">
@@ -709,7 +719,7 @@ function vResumen(){
     const val=m.tipo==='venta'?m.total:m.tipo==='gasto'?-m.valor:m.tipo==='compra'?-m.total:null;
     return `<div class="li"><div class="main"><div class="t1">${lbl[m.tipo]}${m.num?' N° '+m.num:''}: ${esc(desc)}</div><div class="t2">${fmtFecha(m.fecha)}${m.tipo==='venta'?' · '+esc(m.pago!=='Fiado'?(m.pago||'Efectivo'):saldo(m)<1?'Fiado pagado':'Fiado, debe '+money(saldo(m))):''}${m.caja?' · De la caja':''}${m.cliente?' · '+esc(m.cliente):''}${m.nota?' · '+esc(m.nota):''}</div></div>
       <div class="r">${val!=null?`<div class="num" style="font-size:18px;color:${val>=0?'var(--ok)':'var(--fg)'}">${money(val)}</div>`:''}
-      ${m.tipo==='venta'?`<button class="lnk" data-recibo="${m.id}" style="color:var(--accent);font-weight:700">Recibo</button>`:''}<button class="lnk ${S.confirmDel===m.id?'danger':''}" data-del="${m.id}">${S.confirmDel===m.id?'¿Borrar? Sí':'Borrar'}</button></div></div>`}).join(''):'<div class="empty">Sin movimientos en este periodo.</div>'}</div>`;
+      ${m.tipo==='venta'?`<button class="lnk" data-recibo="${m.id}" style="color:var(--accent);font-weight:700">Recibo</button>`:''}<button class="lnk ${S.confirmDel===m.id?'danger':''}" data-del="${m.id}">${S.confirmDel===m.id?((m.abonos||[]).length?'¿Borrar con sus abonos? Sí':'¿Borrar? Sí'):'Borrar'}</button></div></div>`}).join(''):'<div class="empty">Sin movimientos en este periodo.</div>'}</div>`;
 }
 
 /* ===== Formularios ===== */
