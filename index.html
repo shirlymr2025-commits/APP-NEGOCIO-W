@@ -138,6 +138,8 @@ input[type=color]{height:44px;padding:4px;cursor:pointer}
 .cajastrip.open{border:1px solid color-mix(in srgb,var(--ok) 55%,transparent);background:color-mix(in srgb,var(--ok) 8%,var(--surface))}
 .cajastrip > span{display:flex;flex-direction:column;gap:2px;min-width:0}.cajastrip .r{align-items:flex-end;text-align:right}
 .chkline{display:flex;gap:10px;align-items:center;font-size:14px;cursor:pointer}.chkline input{width:20px;height:20px;accent-color:var(--accent)}
+.dropzone{border:2px dashed var(--line);border-radius:14px;padding:10px;transition:border-color .15s,background .15s}
+.dropzone.over{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 10%,transparent)}
 [hidden]{display:none!important}
 </style>
 </head>
@@ -231,6 +233,8 @@ const S={mesOff:0,anio:new Date().getFullYear(),tab:'vender',cart:{},period:'mes
 const $=s=>document.querySelector(s);
 const money=n=>(n<0?'-':'')+'$'+Math.abs(Math.round(n||0)).toLocaleString('es-CO');
 const moneyU=n=>{n=+n||0;return '$'+n.toLocaleString('es-CO',{maximumFractionDigits:n<100?2:0})};
+const fmtIn=n=>{const x=Math.round(+n||0);return x?x.toLocaleString('es-CO'):''};
+const numIn=v=>+String(v??'').replace(/\D/g,'')||0;
 const qty=n=>(+n||0).toLocaleString('es-CO',{maximumFractionDigits:2});
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const sorted=o=>Object.values(o).sort((a,b)=>(a.orden??99)-(b.orden??99)||String(a.nombre||a.concepto).localeCompare(b.nombre||b.concepto));
@@ -310,7 +314,7 @@ function vCaja(){
   if(!c){const ult=hist[0],sug=ult?Math.max(0,(+ult.conteo||0)-(+ult.retiroCierre||0)):'';
     return back+`<h2 style="margin-top:4px"><span class="hl">Abrir caja</span></h2>
     <div class="list"><div class="li" style="flex-direction:column;align-items:stretch;gap:10px">
-      <label class="f">¿Con cuánto efectivo arrancas?<input id="cjBase" type="number" inputmode="numeric" min="0" step="any" value="${sug}" placeholder="Ej: 50000"></label>
+      <label class="f">¿Con cuánto efectivo arrancas?<input id="cjBase" type="text" inputmode="numeric" class="money" autocomplete="off" value="${fmtIn(sug)}" placeholder="Ej: 50.000"></label>
       ${ult?`<div class="small muted">Sugerido: lo que quedó en el último cierre${+ult.retiroCierre?' menos lo que sacaste':''}.</div>`:''}
       <button class="btn yellow block" data-act="abrirCaja">Abrir caja</button></div></div>
     <p class="small muted">Las ventas en efectivo que registres con la caja abierta suman solas. Lo que entra por Nequi, tarjeta o transferencia se muestra aparte porque no está en el cajón.</p>${hl}`}
@@ -325,7 +329,7 @@ function vCaja(){
 }
 function sheetCajaMov(tipo){
   openSheet(`<h3>${tipo==='retiro'?'Sacar plata de la caja':'Meter plata a la caja'}</h3><form style="display:flex;flex-direction:column;gap:12px">
-    <label class="f">Valor<input id="cmVal" name="valor" type="number" inputmode="numeric" min="1" step="any" required></label>
+    <label class="f">Valor<input id="cmVal" name="valor" type="text" inputmode="numeric" class="money" autocomplete="off" required></label>
     <label class="f">Motivo<input id="cmCon" name="concepto" placeholder="${tipo==='retiro'?'Ej: Consigné en el banco, pago a proveedor':'Ej: Sencillo para cambio'}"></label>
     ${btns('Guardar')}</form>`,
   fd=>{const c=cajaAbierta();if(!c)return;c.movs=c.movs||[];c.movs.push({id:uid(),tipo,valor:+fd.get('valor')||0,concepto:String(fd.get('concepto')||'').trim(),fecha:Date.now()});done(tipo==='retiro'?'Retiro anotado':'Ingreso anotado')});
@@ -334,14 +338,14 @@ function sheetCerrarCaja(){
   const c=cajaAbierta();if(!c)return;const k=cuentaCaja(c);
   openSheet(`<h3>Cerrar caja</h3><div class="list">${desglose(k)}</div>
     <form style="display:flex;flex-direction:column;gap:12px">
-    <label class="f">¿Cuánto efectivo contaste?<input id="ccCont" name="conteo" type="number" inputmode="numeric" min="0" step="any" required></label>
+    <label class="f">¿Cuánto efectivo contaste?<input id="ccCont" name="conteo" type="text" inputmode="numeric" class="money" autocomplete="off" required></label>
     <div id="ccDif" class="small"></div>
-    <label class="f">¿Sacas plata al cerrar? (opcional)<input id="ccRet" name="retiro" type="number" inputmode="numeric" min="0" step="any" placeholder="Lo que no dejas de base para mañana"></label>
+    <label class="f">¿Sacas plata al cerrar? (opcional)<input id="ccRet" name="retiro" type="text" inputmode="numeric" class="money" autocomplete="off" placeholder="Lo que no dejas de base para mañana"></label>
     <label class="f">Nota (opcional)<input id="ccNota" name="nota" placeholder="Ej: faltante por cambio mal dado"></label>
     ${btns('Cerrar caja')}</form>`,
   fd=>{const conteo=+fd.get('conteo')||0;Object.assign(c,{cerrada:Date.now(),conteo,esperado:k.esperado,desglose:k,retiroCierre:+fd.get('retiro')||0,nota:String(fd.get('nota')||'').trim()});
     const d=conteo-k.esperado;if(save()){toast(Math.abs(d)<1?'Caja cerrada: cuadró exacto':d>0?'Caja cerrada: sobran '+money(d):'Caja cerrada: faltan '+money(-d));closeSheet()}});
-  $('#ccCont').addEventListener('input',e=>{const v=e.target.value;$('#ccDif').innerHTML=v===''?'':difTxt(+v-k.esperado)});
+  $('#ccCont').addEventListener('input',e=>{const v=e.target.value;$('#ccDif').innerHTML=v===''?'':difTxt(numIn(v)-k.esperado)});
 }
 function sheetCierre(id){
   const x=(D.cajas||[]).find(c=>c.id===id);if(!x)return;const k=x.desglose||cuentaCaja(x);
@@ -383,7 +387,7 @@ function sheetCliente(key){
   openSheet(`<h3>${esc(x.nombre)}</h3><div class="small muted" style="margin-top:-6px">Debe ${money(x.debe)}${x.tel?' · Tel '+esc(x.tel):''}</div>
     <div class="list">${vs.map(v=>`<div class="li"><div class="main"><div class="t1">Venta N° ${v.num||'—'} · ${new Date(v.fecha).toLocaleDateString('es-CO',{day:'numeric',month:'short'})}</div><div class="t2">${(v.items||[]).map(i=>i.cant+'× '+esc(i.nombre)).join(', ')}</div>${abonado(v)?`<div class="t2">Total ${money(v.total)} · abonado ${money(abonado(v))}</div>`:''}</div><div class="big num">${money(saldo(v))}</div></div>`).join('')}</div>
     <form style="display:flex;flex-direction:column;gap:12px">
-    <label class="f">¿Cuánto te pagó?<input id="abVal" name="valor" type="number" inputmode="numeric" min="1" max="${Math.round(x.debe)}" step="any" value="${Math.round(x.debe)}" required></label>
+    <label class="f">¿Cuánto te pagó?<input id="abVal" name="valor" type="text" inputmode="numeric" class="money" autocomplete="off" value="${fmtIn(Math.round(x.debe))}" required></label>
     <div class="paygrid">${PAGOS.filter(m=>m!=='Fiado').map((m,i)=>`<label class="pay"><input type="radio" name="pago" value="${m}" ${i===0?'checked':''}><span>${m}</span></label>`).join('')}</div>
     <div class="small muted">${c?'Si te paga en efectivo, entra a la caja abierta.':'La caja está cerrada: el pago se registra, pero no entra a ningún cierre.'} Si paga menos de lo que debe, queda como abono y se descuenta de la compra más antigua.</div>
     <button type="submit" class="btn primary block">Registrar pago</button></form>
@@ -534,7 +538,7 @@ function vResumen(){
 /* ===== Formularios ===== */
 function openSheet(html,onSubmit){
   const c=$('#sheetCard');c.innerHTML=html;$('#sheet').hidden=false;
-  const f=c.querySelector('form');if(f)f.addEventListener('submit',e=>{e.preventDefault();onSubmit(new FormData(f),e)});
+  const f=c.querySelector('form');if(f)f.addEventListener('submit',e=>{e.preventDefault();const fd=new FormData(f);f.querySelectorAll('input.money').forEach(i=>{if(i.name)fd.set(i.name,String(i.value).replace(/\D/g,''))});onSubmit(fd,e)});
   setTimeout(()=>c.querySelector('input,select')?.focus(),60);
 }
 function closeSheet(){$('#sheet').hidden=true;$('#sheetCard').innerHTML='';render()}
@@ -552,14 +556,14 @@ function sheetCompra(){
     <div id="cSimple" style="display:flex;flex-direction:column;gap:12px"><div class="row"><label class="f">¿Cuántos compraste?<input id="cPaq" name="paq" type="number" inputmode="decimal" min="0" step="any" value="1"></label>
     <label class="f" id="cContL">Contenido de cada uno<input id="cCont" name="cont" type="number" inputmode="decimal" min="0" step="any" value="1"></label></div></div>
     <div id="cVar" hidden><div class="small muted" style="margin-bottom:6px">Unidades que compraste de cada una</div><div id="cGrid" style="display:flex;flex-direction:column;gap:6px"></div></div>
-    <label class="f">Precio de cada uno<input id="cPre" name="pre" type="number" inputmode="numeric" min="0" step="any" placeholder="Ej: 5200" required></label>
+    <label class="f">Precio de cada uno<input id="cPre" name="pre" type="text" inputmode="numeric" class="money" autocomplete="off" placeholder="Ej: 5.200" required></label>
     <div class="small muted" id="cTot"></div>${cajaAbierta()?`<label class="chkline"><input type="checkbox" id="cCaja" name="caja" ${''}><span>Lo pagué con efectivo de la caja</span></label>`:''}${btns('Guardar compra')}</form>`,
   fd=>{const [tipo,id]=String(fd.get('sel')).split(':'),pre=+fd.get('pre')||0,n0=D.movs.length,deCaja=!!fd.get('caja'),marcar=()=>{if(deCaja)D.movs.slice(n0).forEach(m=>m.caja=true)};
     if(tipo==='i'){const paq=+fd.get('paq')||0,cont=+fd.get('cont')||0,i=D.ins[id],cant=paq*cont,cu=cont?pre/cont:0;if(!cant){toast('Escribe cuántos compraste.');return}
       D.movs.push({id:uid(),tipo:'compra',fecha:Date.now(),insumoId:id,nombre:i.nombre,unidad:U(i),cant,costoUnit:cu,total:paq*pre});marcar();i.costo=cu;i.ultimoCont=cont;done('Compra guardada: +'+qty(cant)+' '+U(i))}
     else{const p=D.prod[id];let n=0;for(const v of p.variantes){const q=+fd.get('v_'+v.ins)||0;if(q>0&&D.ins[v.ins]){compraMov(v.ins,q,pre);n+=q}if(D.ins[v.ins]&&pre)D.ins[v.ins].costo=pre}
       if(!n){toast('Escribe al menos una cantidad.');return}marcar();done('Compra guardada: +'+n+' und')}});
-  const upd=()=>{const [tipo,id]=$('#cSel').value.split(':'),pre=+$('#cPre').value||0;
+  const upd=()=>{const [tipo,id]=$('#cSel').value.split(':'),pre=numIn($('#cPre').value);
     $('#cSimple').hidden=tipo!=='i';$('#cVar').hidden=tipo!=='p';
     if(tipo==='i'){const i=D.ins[id],u=U(i),paq=+$('#cPaq').value||0,cont=+$('#cCont').value||0;
       $('#cContL').firstChild.textContent=u==='und'?'Unidades en cada paquete':'Contenido de cada uno ('+u+')';
@@ -568,7 +572,7 @@ function sheetCompra(){
   const sel=()=>{const [tipo,id]=$('#cSel').value.split(':');
     if(tipo==='i'){const i=D.ins[id];$('#cCont').value=i.ultimoCont||(U(i)==='und'?1:'')}
     else{const p=D.prod[id];$('#cGrid').innerHTML=p.variantes.filter(v=>D.ins[v.ins]).map(v=>`<div class="rec"><span>${esc(v.nombre)}</span><input id="v_${v.ins}" name="v_${v.ins}" type="number" inputmode="numeric" min="0" step="1" value="0"><span class="small muted">und</span></div>`).join('');
-      const c=D.ins[p.variantes[0]?.ins]?.costo;if(c&&!$('#cPre').value)$('#cPre').value=c}
+      const c=D.ins[p.variantes[0]?.ins]?.costo;if(c&&!$('#cPre').value)$('#cPre').value=fmtIn(c)}
     upd()};
   $('#cSel').addEventListener('change',sel);$('#sheetCard form').addEventListener('input',upd);sel();
 }
@@ -593,7 +597,7 @@ function sheetProducto(id){
   const cats=[...new Set(Object.values(D.prod).map(x=>x.categoria||'Productos'))];
   openSheet(`<h3>${p?esc(p.nombre):'Nuevo producto'}</h3><form style="display:flex;flex-direction:column;gap:12px">
     <label class="f">Nombre<input id="pNom" name="nombre" value="${esc(p?.nombre||'')}" required></label>
-    <div class="row"><label class="f">Precio de venta<input id="pPre" name="precio" type="number" inputmode="numeric" min="0" step="any" value="${p?.precio||''}" required></label>
+    <div class="row"><label class="f">Precio de venta<input id="pPre" name="precio" type="text" inputmode="numeric" class="money" autocomplete="off" value="${fmtIn(p?.precio||'')}" required></label>
     <label class="f">Categoría<input id="pCat" name="categoria" list="catList" value="${esc(p?.categoria||'')}" placeholder="Ej: Tortas"></label></div>
     <datalist id="catList">${cats.map(c=>`<option value="${esc(c)}">`).join('')}</datalist>
     <div class="small muted">Receta: cuánto lleva de cada insumo para UNA unidad (0 si no lleva).</div>
@@ -611,8 +615,8 @@ function sheetReventa(id,modo){
     ${p?'':`<p class="small muted" style="margin:0">${ropa?'Escribe las tallas y colores separados por coma. Cada combinación lleva su propio inventario.':'Algo que compras listo y vendes igual. Si viene en tonos, colores o sabores, escríbelos separados por coma.'}</p>`}
     <form style="display:flex;flex-direction:column;gap:12px">
     <label class="f">Nombre<input id="rvNom" name="nombre" value="${esc(p?.nombre||'')}" placeholder="${ropa?'Ej: Blusa de lino':'Ej: Labial mate'}" required></label>
-    <div class="row"><label class="f">Te cuesta (c/u)<input id="rvCos" name="costo" type="number" inputmode="numeric" min="0" step="any" value="${costo0||''}" required></label>
-    <label class="f">Lo vendes a<input id="rvPre" name="precio" type="number" inputmode="numeric" min="0" step="any" value="${p?.precio||''}" required></label></div>
+    <div class="row"><label class="f">Te cuesta (c/u)<input id="rvCos" name="costo" type="text" inputmode="numeric" class="money" autocomplete="off" value="${fmtIn(costo0||'')}" required></label>
+    <label class="f">Lo vendes a<input id="rvPre" name="precio" type="text" inputmode="numeric" class="money" autocomplete="off" value="${fmtIn(p?.precio||'')}" required></label></div>
     <label class="f">Categoría<input id="rvCat" name="categoria" list="catList2" value="${esc(p?.categoria||(ropa?'Ropa':'Accesorios'))}"></label>
     <datalist id="catList2">${cats.map(c=>`<option value="${esc(c)}">`).join('')}</datalist>
     ${ropa?`<label class="f">Tallas<input id="rvTal" name="tallas" value="${esc(p?.tallas||'')}" placeholder="Ej: S, M, L  o  6, 8, 10"></label>`:''}
@@ -644,7 +648,7 @@ function sheetFijo(id){
   const hist=x?.hist&&Object.keys(x.hist).length>1?Object.entries(x.hist).sort((a,b)=>b[0]<a[0]?-1:1):[];
   openSheet(`<h3>${x?esc(x.concepto):'Nuevo gasto fijo'}</h3><form style="display:flex;flex-direction:column;gap:12px">
     <label class="f">Concepto<input id="fCon" name="concepto" value="${esc(x?.concepto||'')}" required></label>
-    <div class="row"><label class="f">Valor al mes<input id="fVal" name="valor" type="number" inputmode="numeric" min="0" step="any" value="${cur||''}" required></label>
+    <div class="row"><label class="f">Valor al mes<input id="fVal" name="valor" type="text" inputmode="numeric" class="money" autocomplete="off" value="${fmtIn(cur||'')}" required></label>
     <label class="f">Desde<select id="fDesde" name="desde">${meses.map(k=>`<option value="${k}" ${k===mesHoy()?'selected':''}>${mesNombre(k)}</option>`).join('')}</select></label></div>
     <p class="small muted" style="margin:0">Si el valor cambia (por ejemplo, subió el arriendo), elige desde qué mes aplica. Los meses anteriores conservan su valor.</p>
     <label class="f">Nota (opcional)<input id="fNota" name="nota" value="${esc(x?.nota||'')}" placeholder="Ej: se paga el día 5"></label>
@@ -661,7 +665,7 @@ function sheetFijo(id){
 function sheetGasto(){
   openSheet(`<h3>Registrar gasto</h3><form style="display:flex;flex-direction:column;gap:12px">
     <label class="f">Concepto<input id="gCon" name="concepto" placeholder="Ej: Transporte, domicilio" required></label>
-    <label class="f">Valor<input id="gVal" name="valor" type="number" inputmode="numeric" min="0" step="any" required></label>${cajaAbierta()?`<label class="chkline"><input type="checkbox" id="gCaja" name="caja" ${"checked"}><span>Lo pagué con efectivo de la caja</span></label>`:''}${btns('Guardar gasto')}</form>`,
+    <label class="f">Valor<input id="gVal" name="valor" type="text" inputmode="numeric" class="money" autocomplete="off" required></label>${cajaAbierta()?`<label class="chkline"><input type="checkbox" id="gCaja" name="caja" ${"checked"}><span>Lo pagué con efectivo de la caja</span></label>`:''}${btns('Guardar gasto')}</form>`,
   fd=>{D.movs.push({id:uid(),tipo:'gasto',fecha:Date.now(),concepto:String(fd.get('concepto')).trim(),valor:+fd.get('valor')||0,caja:!!fd.get('caja')});done('Gasto guardado')});
 }
 function sheetAjustes(){
@@ -676,9 +680,9 @@ function sheetAjustes(){
     <h3 style="margin-top:8px">Recibos</h3>
     <button type="button" class="btn ghost block" data-act="datosRecibo">Mis datos para los recibos</button>
     <h3 style="margin-top:8px">Logo</h3>
-    <div class="logoedit">${D.cfg.logo?`<img class="prev" src="${D.cfg.logo}" alt="Logo actual">`:'<div class="prev">Sin logo</div>'}
+    <div class="logoedit dropzone" id="logoDrop">${D.cfg.logo?`<img class="prev" src="${D.cfg.logo}" alt="Logo actual">`:'<div class="prev">Sin logo</div>'}
       <div class="row" style="flex:1"><button type="button" class="btn ghost" data-act="subirLogo">${D.cfg.logo?'Cambiar logo':'Subir logo'}</button>${D.cfg.logo?'<button type="button" class="btn ghost" data-act="quitarLogo">Quitar</button>':''}</div></div>
-    <p class="small muted" style="margin:0">Usa una imagen cuadrada (PNG o JPG). Se muestra junto al nombre del negocio.</p>
+    <p class="small muted" style="margin:0">Arrastra tu logo aquí, pégalo (Ctrl+V o mantener presionado → Pegar) o súbelo desde tus archivos. Mejor si es cuadrado (PNG o JPG).</p>
     <h3 style="margin-top:8px">Colores</h3>
     <div class="temas">${Object.entries(TEMAS).map(([k,t])=>`<button type="button" class="tema ${(D.cfg.tema||'neon')===k?'sel':''}" data-tema="${k}" style="background:${t.bg};color:${t.fg};border-color:${(D.cfg.tema||'neon')===k?t.accent:t.line}">
       <span class="dots"><i style="background:${t.accent}"></i><i style="background:${t.accent2}"></i></span>${t.nombre}</button>`).join('')}</div>
@@ -709,13 +713,24 @@ function exportar(){
 $('#importFile').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();
   r.onload=()=>{try{const j=JSON.parse(r.result),d=j.datos||j;if(!d.cfg||!d.ins)throw 0;D={...blank(),...d};save();$('#sheet').hidden=true;S.tab='vender';render();toast('Copia cargada')}catch(err){toast('Ese archivo no es una copia válida.')}e.target.value=''};r.readAsText(f)});
 
-$('#logoFile').addEventListener('change',e=>{const f=e.target.files[0];e.target.value='';if(!f)return;
+function cargarLogo(f){if(!f)return;if(f.type&&!/^image\//.test(f.type)){toast('Ese archivo no es una imagen.');return}
   const url=URL.createObjectURL(f),img=new Image();
   img.onload=()=>{const S2=256,c=document.createElement('canvas');c.width=c.height=S2;const x=c.getContext('2d');
     const sc=Math.max(S2/img.width,S2/img.height),w=img.width*sc,h=img.height*sc;x.drawImage(img,(S2-w)/2,(S2-h)/2,w,h);
     URL.revokeObjectURL(url);let data;try{data=c.toDataURL('image/png');if(data.length>180000)data=c.toDataURL('image/jpeg',.85)}catch(err){toast('No se pudo leer esa imagen.');return}
     D.cfg.logo=data;if(save()){render();sheetAjustes();toast('Logo guardado')}};
-  img.onerror=()=>{URL.revokeObjectURL(url);toast('Ese archivo no es una imagen válida.')};img.src=url});
+  img.onerror=()=>{URL.revokeObjectURL(url);toast('Ese archivo no es una imagen válida.')};img.src=url}
+$('#logoFile').addEventListener('change',e=>{const f=e.target.files[0];e.target.value='';if(f)cargarLogo(f)});
+/* arrastrar o pegar el logo cuando Ajustes está abierto */
+const imgDe=list=>[...(list||[])].map(x=>x.kind==='file'?x.getAsFile():x).find(f=>f&&/^image\//.test(f.type));
+let dragN=0;
+document.addEventListener('dragenter',e=>{if(!$('#logoDrop')||![...(e.dataTransfer?.types||[])].includes('Files'))return;dragN++;$('#logoDrop').classList.add('over')});
+document.addEventListener('dragleave',()=>{if(!$('#logoDrop'))return;dragN=Math.max(0,dragN-1);if(!dragN)$('#logoDrop').classList.remove('over')});
+document.addEventListener('dragover',e=>{if([...(e.dataTransfer?.types||[])].includes('Files'))e.preventDefault()});
+document.addEventListener('drop',e=>{if(![...(e.dataTransfer?.types||[])].includes('Files'))return;e.preventDefault();dragN=0;
+  if(!$('#logoDrop')){toast('Para cambiar el logo, abre Ajustes y suelta la imagen ahí.');return}
+  $('#logoDrop').classList.remove('over');const f=imgDe(e.dataTransfer.files);if(f)cargarLogo(f);else toast('Suelta una imagen (PNG o JPG).')});
+document.addEventListener('paste',e=>{if(!$('#logoDrop'))return;const f=imgDe(e.clipboardData?.items);if(f){e.preventDefault();cargarLogo(f)}});
 
 /* ===== Acciones ===== */
 const PAGOS=['Efectivo','Nequi','Daviplata','Transferencia','Tarjeta','Fiado'];
@@ -860,7 +875,7 @@ document.addEventListener('click',e=>{
     case 'close':closeSheet();break;
     case 'clearCart':S.cart={};render();break;
     case 'sell':sheetCobrar();break;
-    case 'abrirCaja':{const v=$('#cjBase').value;if(v===''){toast('Escribe con cuánto efectivo arrancas (puede ser 0).');$('#cjBase').focus();return}
+    case 'abrirCaja':{const v=$('#cjBase').value.replace(/\D/g,'');if(v===''){toast('Escribe con cuánto efectivo arrancas (puede ser 0).');$('#cjBase').focus();return}
       D.cajas=D.cajas||[];D.cajas.push({id:uid(),abierta:Date.now(),cerrada:null,base:+v||0,movs:[]});if(save()){toast('Caja abierta con '+money(+v||0));S.tab='vender';render()}break}
     case 'cajaIngreso':sheetCajaMov('ingreso');break;
     case 'cajaRetiro':sheetCajaMov('retiro');break;
@@ -882,6 +897,11 @@ document.addEventListener('click',e=>{
   }
 });
 $('#sheet').addEventListener('click',e=>{if(e.target.id==='sheet')closeSheet()});
+document.addEventListener('input',e=>{const el=e.target;if(!el.classList||!el.classList.contains('money'))return;
+  const pos=el.selectionStart??el.value.length,derecha=el.value.slice(pos).replace(/\D/g,'').length,dig=el.value.replace(/\D/g,'').replace(/^0+(?=\d)/,'');
+  const out=dig?(+dig).toLocaleString('es-CO'):'';if(out===el.value)return;el.value=out;
+  let k=out.length,c=0;while(k>0&&c<derecha){k--;if(/\d/.test(out[k]))c++}try{el.setSelectionRange(k,k)}catch(_){}
+},true);
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#sheet').hidden)closeSheet()});
 render();
 if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
